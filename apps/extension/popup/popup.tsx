@@ -8,6 +8,10 @@ const orderCountEl = $("order-count");
 const btnSync = $("btn-sync") as HTMLButtonElement;
 const btnDashboard = $("btn-dashboard") as HTMLButtonElement;
 const btnConnect = $("btn-connect") as HTMLButtonElement;
+const btnDisconnect = $("btn-disconnect") as HTMLButtonElement;
+const btnSaveToken = $("btn-save-token") as HTMLButtonElement;
+const tokenInput = $("token-input") as HTMLInputElement;
+const tokenError = $("token-error");
 const connectPrompt = $("connect-prompt");
 const mainView = $("main-view");
 const progressContainer = $("progress-container");
@@ -100,7 +104,37 @@ btnDashboard.addEventListener("click", async () => {
 btnConnect.addEventListener("click", async () => {
   const result = await chrome.storage.local.get("apiBase");
   const base = result.apiBase || __API_BASE__;
-  chrome.tabs.create({ url: `${base}/login` });
+  const extensionId = chrome.runtime.id;
+  chrome.tabs.create({
+    url: `${base}/extension-connect?extensionId=${encodeURIComponent(extensionId)}`,
+  });
+});
+
+btnSaveToken.addEventListener("click", async () => {
+  const token = tokenInput.value.trim();
+  tokenError.style.display = "none";
+
+  if (!token) {
+    tokenError.textContent = "Token is required";
+    tokenError.style.display = "block";
+    return;
+  }
+
+  await chrome.storage.local.set({ token });
+  tokenInput.value = "";
+  loadStatus();
+});
+
+btnDisconnect.addEventListener("click", async () => {
+  await chrome.storage.local.remove(["token", "lastSync", "orderCount"]);
+  loadStatus();
+});
+
+// Refresh status when token is written from an external source (web handoff)
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes.token) {
+    loadStatus();
+  }
 });
 
 // Initialize

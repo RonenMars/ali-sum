@@ -105,6 +105,18 @@ async function startSync() {
   }
 }
 
+// Listen for handoff messages from the web app (externally_connectable)
+chrome.runtime.onMessageExternal.addListener((message, _sender, sendResponse) => {
+  if (message?.type === "SET_TOKEN" && typeof message.token === "string") {
+    chrome.storage.local.set({ token: message.token }).then(() => {
+      sendResponse({ ok: true });
+    });
+    return true; // Async response
+  }
+  sendResponse({ ok: false, error: "Unknown message" });
+  return false;
+});
+
 // Listen for messages from the popup
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === "START_SYNC") {

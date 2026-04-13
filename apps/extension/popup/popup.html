@@ -96,7 +96,24 @@
     <p style="font-size: 13px; color: #a1a1aa; text-align: center; margin-bottom: 12px;">
       Connect your account to start syncing orders.
     </p>
-    <button class="btn-primary" id="btn-connect">Connect Account</button>
+    <div class="actions">
+      <button class="btn-primary" id="btn-connect">Connect Account</button>
+      <details style="margin-top: 4px;">
+        <summary style="font-size: 12px; color: #a1a1aa; cursor: pointer; text-align: center;">
+          Paste token manually
+        </summary>
+        <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 6px;">
+          <input
+            id="token-input"
+            type="password"
+            placeholder="Paste API token"
+            style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #27272a; background: #18181b; color: #fafafa; font-size: 12px;"
+          />
+          <button class="btn-secondary" id="btn-save-token">Save Token</button>
+          <p class="error" id="token-error" style="display:none;"></p>
+        </div>
+      </details>
+    </div>
   </div>
 
   <div id="main-view">
@@ -124,6 +141,7 @@
     <div class="actions">
       <button class="btn-primary" id="btn-sync">Sync Now</button>
       <button class="btn-secondary" id="btn-dashboard">Open Dashboard</button>
+      <button class="btn-link" id="btn-disconnect">Disconnect</button>
     </div>
   </div>
 
