@@ -1,10 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatAmount } from "@/lib/format";
 
 interface SummaryCardsProps {
   totalSpent: number;
   totalOrders: number;
   avgOrderValue: number;
   totalItems: number;
+  currency: string;
 }
 
 export function SummaryCards({
@@ -12,11 +14,12 @@ export function SummaryCards({
   totalOrders,
   avgOrderValue,
   totalItems,
+  currency,
 }: SummaryCardsProps) {
   const cards = [
     {
       title: "Total Spent",
-      value: `$${totalSpent.toFixed(2)}`,
+      value: formatAmount(totalSpent, currency),
     },
     {
       title: "Total Orders",
@@ -24,7 +27,7 @@ export function SummaryCards({
     },
     {
       title: "Avg Order Value",
-      value: `$${avgOrderValue.toFixed(2)}`,
+      value: formatAmount(avgOrderValue, currency),
     },
     {
       title: "Items Purchased",

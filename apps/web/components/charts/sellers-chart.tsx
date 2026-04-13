@@ -12,9 +12,10 @@ import {
 
 interface SellersChartProps {
   data: { name: string; totalSpent: number; orderCount: number }[];
+  currency?: string;
 }
 
-export function SellersChart({ data }: SellersChartProps) {
+export function SellersChart({ data, currency = "USD" }: SellersChartProps) {
   if (data.length === 0) {
     return (
       <div className="flex h-[300px] items-center justify-center text-muted-foreground text-sm">
@@ -31,7 +32,7 @@ export function SellersChart({ data }: SellersChartProps) {
           type="number"
           className="text-xs"
           tick={{ fill: "hsl(var(--muted-foreground))" }}
-          tickFormatter={(v) => `$${v}`}
+          tickFormatter={(v) => new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(Number(v))}
         />
         <YAxis
           type="category"
@@ -47,7 +48,7 @@ export function SellersChart({ data }: SellersChartProps) {
             borderRadius: "6px",
             color: "hsl(var(--popover-foreground))",
           }}
-          formatter={(value) => [`$${Number(value).toFixed(2)}`, "Total Spent"]}
+          formatter={(value) => [new Intl.NumberFormat("en-US", { style: "currency", currency }).format(Number(value)), "Total Spent"]}
         />
         <Bar
           dataKey="totalSpent"

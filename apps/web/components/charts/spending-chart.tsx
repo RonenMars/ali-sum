@@ -12,9 +12,10 @@ import {
 
 interface SpendingChartProps {
   data: { period: string; amount: number; orderCount: number }[];
+  currency?: string;
 }
 
-export function SpendingChart({ data }: SpendingChartProps) {
+export function SpendingChart({ data, currency = "USD" }: SpendingChartProps) {
   if (data.length === 0) {
     return (
       <div className="flex h-[300px] items-center justify-center text-muted-foreground text-sm">
@@ -41,7 +42,7 @@ export function SpendingChart({ data }: SpendingChartProps) {
         <YAxis
           className="text-xs"
           tick={{ fill: "hsl(var(--muted-foreground))" }}
-          tickFormatter={(v) => `$${v}`}
+          tickFormatter={(v) => new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(Number(v))}
         />
         <Tooltip
           contentStyle={{
@@ -50,7 +51,7 @@ export function SpendingChart({ data }: SpendingChartProps) {
             borderRadius: "6px",
             color: "hsl(var(--popover-foreground))",
           }}
-          formatter={(value) => [`$${Number(value).toFixed(2)}`, "Spent"]}
+          formatter={(value) => [new Intl.NumberFormat("en-US", { style: "currency", currency }).format(Number(value)), "Spent"]}
         />
         <Area
           type="monotone"
