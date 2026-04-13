@@ -54,6 +54,20 @@ function sendScrapeMessage(
   });
 }
 
+function sendLoadMoreMessage(
+  tabId: number,
+): Promise<{ loaded: boolean; hasNextPage: boolean }> {
+  return new Promise((resolve, reject) => {
+    chrome.tabs.sendMessage(tabId, { type: "LOAD_MORE" }, (response) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
+      }
+      resolve(response);
+    });
+  });
+}
+
 async function scrapeTab(tabId: number): Promise<{ orders: ScrapedOrder[]; hasNextPage: boolean }> {
   try {
     return await sendScrapeMessage(tabId);
@@ -74,35 +88,65 @@ async function scrapeTab(tabId: number): Promise<{ orders: ScrapedOrder[]; hasNe
   }
 }
 
+const MAX_PAGES = 200;
+
 async function startSync() {
   try {
     broadcastProgress({ status: "syncing", currentPage: 1, totalPages: null, ordersFound: 0 });
 
     const tabId = await findOrOpenOrdersTab();
-    const allOrders: ScrapedOrder[] = [];
+    const ordersById = new Map<string, ScrapedOrder>();
     let page = 1;
     let hasMore = true;
 
-    while (hasMore) {
+    while (hasMore && page <= MAX_PAGES) {
       broadcastProgress({
         status: "syncing",
         currentPage: page,
         totalPages: null,
-        ordersFound: allOrders.length,
+        ordersFound: ordersById.size,
       });
 
       const result = await scrapeTab(tabId);
-      allOrders.push(...result.orders);
+      const sizeBefore = ordersById.size;
+      for (const order of result.orders) {
+        if (order.aliOrderId) ordersById.set(order.aliOrderId, order);
+      }
+      const addedThisPage = ordersById.size - sizeBefore;
       hasMore = result.hasNextPage;
 
-      if (hasMore) {
-        // TODO: Click next page button and wait for load
-        page++;
+      if (!hasMore) break;
+
+      // Click "View orders" / "Load more" and wait for new items to render.
+      const loadMore = await sendLoadMoreMessage(tabId);
+      hasMore = loadMore.hasNextPage;
+
+      // Stop if the button didn't actually produce new items AND we also
+      // didn't pick up any new orders this iteration — prevents infinite loops
+      // if AliExpress changes UI or the button is disabled.
+      if (!loadMore.loaded && addedThisPage === 0) {
+        break;
       }
+
+      page++;
     }
 
+    const allOrders = Array.from(ordersById.values());
+
+    broadcastProgress({
+      status: "syncing",
+      currentPage: page,
+      totalPages: page,
+      ordersFound: allOrders.length,
+      message: `Uploading ${allOrders.length} orders to server...`,
+    });
+
+    let created = 0;
+    let skipped = 0;
     if (allOrders.length > 0) {
-      await syncOrders(allOrders);
+      const result = await syncOrders(allOrders);
+      created = result.created;
+      skipped = result.skipped;
     }
 
     await chrome.storage.local.set({
@@ -110,12 +154,27 @@ async function startSync() {
       orderCount: allOrders.length,
     });
 
+    const message =
+      created === 0 && skipped > 0
+        ? `Already up to date (${skipped} order${skipped !== 1 ? "s" : ""} already synced)`
+        : created > 0
+          ? `${created} new order${created !== 1 ? "s" : ""} synced`
+          : undefined;
+
     broadcastProgress({
       status: "completed",
       currentPage: page,
       totalPages: page,
       ordersFound: allOrders.length,
+      message,
     });
+    // Reset stored reference so future GET_STATUS calls show accurate count.
+    currentProgress = {
+      status: "completed",
+      currentPage: page,
+      totalPages: page,
+      ordersFound: allOrders.length,
+    };
   } catch (error) {
     broadcastProgress({
       status: "failed",
@@ -125,6 +184,16 @@ async function startSync() {
       error: error instanceof Error ? error.message : "Unknown error",
     });
   }
+}
+
+// Seed a build-time dev token into storage if none is set yet. Baked into the
+// bundle via `DEV_TOKEN` in apps/extension/.env — intended for local dev only.
+if (__DEV_TOKEN__) {
+  chrome.storage.local.get("token").then((result) => {
+    if (!result.token) {
+      chrome.storage.local.set({ token: __DEV_TOKEN__ });
+    }
+  });
 }
 
 // Listen for handoff messages from the web app (externally_connectable)

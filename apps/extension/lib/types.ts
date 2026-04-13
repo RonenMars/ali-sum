@@ -23,6 +23,7 @@ export interface SyncProgress {
   totalPages: number | null;
   ordersFound: number;
   error?: string;
+  message?: string;
 }
 
 export interface SyncResult {
@@ -36,5 +37,7 @@ export type MessageType =
   | { type: "SYNC_PROGRESS"; progress: SyncProgress }
   | { type: "SCRAPE_ORDERS" }
   | { type: "SCRAPE_RESULT"; orders: ScrapedOrder[]; hasNextPage: boolean }
+  | { type: "LOAD_MORE" }
+  | { type: "LOAD_MORE_RESULT"; loaded: boolean; hasNextPage: boolean }
   | { type: "GET_STATUS" }
   | { type: "STATUS"; lastSync: string | null; orderCount: number; connected: boolean };

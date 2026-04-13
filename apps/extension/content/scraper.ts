@@ -24,6 +24,7 @@ function parseCurrency(text: string): string {
   if (/€|EUR/.test(text)) return "EUR";
   if (/£|GBP/.test(text)) return "GBP";
   if (/¥|CNY|JPY/.test(text)) return "CNY";
+  if (/₪|ILS|NIS/.test(text)) return "ILS";
   // Fallback: grab first uppercase letter sequence
   const m = text.match(/([A-Z]{3})/);
   return m ? m[1] : "USD";
@@ -180,17 +181,39 @@ function scrapeOrdersFromPage(): ScrapedOrder[] {
   return orders;
 }
 
-function hasNextPage(): boolean {
+function findLoadMoreButton(): HTMLButtonElement | null {
   // The order list uses a "View orders" / "Load more" button instead of traditional pagination.
   // Selector confirmed by greasyfork #559652 "AliExpress auto-load more orders".
   const buttons = document.querySelectorAll<HTMLButtonElement>(
     "button.comet-btn.comet-btn-large.comet-btn-borderless"
   );
   for (const btn of Array.from(buttons)) {
+    if (btn.disabled) continue;
     const label = btn.querySelector("span")?.textContent || btn.textContent || "";
     if (/view\s+orders|load\s+more|next/i.test(label)) {
-      return true;
+      return btn;
     }
+  }
+  return null;
+}
+
+function hasNextPage(): boolean {
+  return findLoadMoreButton() !== null;
+}
+
+async function clickLoadMore(): Promise<boolean> {
+  const btn = findLoadMoreButton();
+  if (!btn) return false;
+
+  const beforeCount = document.querySelectorAll(".order-item").length;
+  btn.click();
+
+  // Wait for new order items to appear, or timeout.
+  const deadline = Date.now() + 15000;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 300));
+    const nowCount = document.querySelectorAll(".order-item").length;
+    if (nowCount > beforeCount) return true;
   }
   return false;
 }
@@ -204,8 +227,17 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       orders,
       hasNextPage: hasNextPage(),
     });
+    return false;
   }
-  return true; // Keep message channel open for async response
+
+  if (message.type === "LOAD_MORE") {
+    clickLoadMore().then((loaded) => {
+      sendResponse({ type: "LOAD_MORE_RESULT", loaded, hasNextPage: hasNextPage() });
+    });
+    return true; // async response
+  }
+
+  return false;
 });
 
 console.log("[ali-sum] Content script loaded on AliExpress order page");
