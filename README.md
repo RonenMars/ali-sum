@@ -63,12 +63,24 @@ ali-sum/
 
 ## Running Locally
 
-### Prerequisites
+### Quick start
+
+```bash
+./setup.sh
+```
+
+The script handles Steps 1–7 automatically (deps, env, DB migration, extension build) and prints instructions for the remaining manual steps.
+
+---
+
+### Manual setup
+
+#### Prerequisites
 
 - Node.js 18+
 - A PostgreSQL database — [Neon](https://neon.tech) is recommended (free tier works)
 
-### 1. Install dependencies
+#### 1. Install dependencies
 
 ```bash
 # From the repo root
