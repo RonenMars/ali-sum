@@ -61,55 +61,90 @@ ali-sum/
 └── package.json                # npm workspaces root
 ```
 
-## Getting Started
+## Running Locally
 
 ### Prerequisites
 
 - Node.js 18+
-- PostgreSQL database (local or hosted, e.g. [Neon](https://neon.tech))
+- A PostgreSQL database — [Neon](https://neon.tech) is recommended (free tier works)
 
-### Web App
+### 1. Install dependencies
 
 ```bash
-# Install dependencies (from repo root)
+# From the repo root
 npm install
+```
 
-# Configure environment
+### 2. Configure environment
+
+```bash
+cp apps/web/.env.example apps/web/.env
+```
+
+Edit `apps/web/.env`:
+
+```env
+DATABASE_URL="postgresql://..."   # your Neon or local Postgres connection string
+AUTH_SECRET="..."                 # random string, e.g. output of: openssl rand -base64 32
+AUTH_URL="http://localhost:3000"
+```
+
+### 3. Set up the database
+
+```bash
 cd apps/web
-cp .env .env.local
-# Edit .env.local with your DATABASE_URL and a random AUTH_SECRET
-
-# Set up database
 npx prisma migrate dev
-
-# Start dev server
-npm run dev
 ```
 
-The app runs at `http://localhost:3000`.
-
-### Chrome Extension
+### 4. Start the web app
 
 ```bash
-cd apps/extension
-npm install
-npm run build
+# From repo root
+npm -w apps/web run dev
 ```
 
-Load in Chrome:
+Open `http://localhost:3000`.
+
+### 5. Create an account
+
+Go to `http://localhost:3000/register` and sign up.
+
+### 6. Get your extension token
+
+After logging in, go to **Settings** → **Generate Token** and copy the token.
+
+### 7. Build the Chrome extension
+
+```bash
+npm -w apps/extension run build
+```
+
+Output goes to `apps/extension/dist/`.
+
+### 8. Load the extension in Chrome
+
 1. Go to `chrome://extensions`
-2. Enable "Developer mode"
-3. Click "Load unpacked"
-4. Select the `apps/extension/` directory
+2. Enable **Developer mode** (top-right toggle)
+3. Click **Load unpacked**
+4. Select the `apps/extension` folder
 
-### Connecting the Extension
+### 9. Connect the extension
 
-1. Register/login at `http://localhost:3000`
-2. Go to Settings → Generate Token
-3. Copy the token
-4. Open the extension popup → Connect Account
-5. Navigate to your [AliExpress order page](https://www.aliexpress.com/p/order/index.html)
-6. Click "Sync Now"
+Click the ali-sum icon in Chrome, paste your token from Step 6, and click **Connect**.
+
+### 10. Sync your orders
+
+1. Navigate to `https://www.aliexpress.com/p/order/index.html` (must be logged in to AliExpress)
+2. Click the extension icon → **Sync Now**
+3. Orders are scraped and sent to `localhost:3000/api/orders/sync`
+
+### 11. View analytics
+
+Go back to `http://localhost:3000` — the dashboard shows spending summaries, charts, and order history.
+
+---
+
+**Tip:** Run `npm -w apps/extension run watch` while developing the extension for automatic rebuilds. After each rebuild, click the refresh icon on `chrome://extensions`.
 
 ## API Endpoints
 
@@ -125,7 +160,7 @@ Load in Chrome:
 
 ## Status
 
-MVP scaffold is complete. The content script DOM selectors (`apps/extension/content/scraper.ts`) need to be implemented by inspecting live AliExpress order pages.
+MVP is complete and functional. The content script (`apps/extension/content/scraper.ts`) uses DOM selectors verified against the current AliExpress order page. AliExpress ships frequent UI changes — if scraping breaks, open DevTools on the order page and re-check the selectors listed in that file.
 
 ## License
 
