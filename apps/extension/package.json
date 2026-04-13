@@ -3,9 +3,10 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "build": "node build.mjs",
-    "watch": "node build.mjs --watch",
-    "clean": "rm -rf dist"
+    "build": "node --env-file-if-exists=.env build.mjs",
+    "watch": "node --env-file-if-exists=.env build.mjs --watch",
+    "clean": "rm -rf dist",
+    "bld": "npm -w apps/extension run build"
   },
   "devDependencies": {
     "esbuild": "^0.25.0",
