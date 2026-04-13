@@ -10,6 +10,18 @@ export async function getToken(): Promise<string | null> {
   return result.token || null;
 }
 
+export async function whoami(): Promise<{ id: string; email: string } | null> {
+  const [apiBase, token] = await Promise.all([getApiBase(), getToken()]);
+  if (!token) return null;
+
+  const res = await fetch(`${apiBase}/api/auth/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!res.ok) return null;
+  return res.json();
+}
+
 export async function syncOrders(orders: ScrapedOrder[]): Promise<SyncResult> {
   const [apiBase, token] = await Promise.all([getApiBase(), getToken()]);
 
@@ -27,8 +39,12 @@ export async function syncOrders(orders: ScrapedOrder[]): Promise<SyncResult> {
   });
 
   if (!res.ok) {
-    const error = await res.text();
-    throw new Error(`Sync failed: ${error}`);
+    const body = await res.json().catch(() => null);
+    // If all orders were already synced (skipped with no new ones), treat as success
+    if (body && body.created === 0 && typeof body.skipped === "number" && body.skipped > 0) {
+      return body as SyncResult;
+    }
+    throw new Error(`Sync failed: ${body ? JSON.stringify(body) : res.statusText}`);
   }
 
   return res.json();

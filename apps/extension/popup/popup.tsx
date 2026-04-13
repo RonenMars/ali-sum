@@ -1,4 +1,5 @@
 // Popup script — vanilla TS (no React needed for this simple UI)
+import { whoami } from "../lib/api-client";
 
 const $ = (id: string) => document.getElementById(id)!;
 
@@ -41,6 +42,16 @@ async function loadStatus() {
     return;
   }
 
+  // Verify the stored token is still valid against the backend
+  const user = await whoami();
+  if (!user) {
+    // Token invalid or expired — clear it and show connect prompt
+    await chrome.storage.local.remove(["token", "lastSync", "orderCount"]);
+    connectPrompt.style.display = "block";
+    mainView.style.display = "none";
+    return;
+  }
+
   connectPrompt.style.display = "none";
   mainView.style.display = "block";
 
@@ -67,7 +78,10 @@ chrome.runtime.onMessage.addListener((message) => {
       statusText.className = "value syncing";
       progressContainer.style.display = "block";
       errorContainer.style.display = "none";
-      progressText.textContent = `Scanning page ${progress.currentPage}... (${progress.ordersFound} orders found)`;
+      errorText.className = "error";
+      progressText.textContent = progress.message
+        ? progress.message
+        : `Scanning page ${progress.currentPage}... (${progress.ordersFound} orders found)`;
     }
 
     if (progress.status === "completed") {
@@ -76,6 +90,11 @@ chrome.runtime.onMessage.addListener((message) => {
       statusText.textContent = "Connected";
       statusText.className = "value connected";
       progressContainer.style.display = "none";
+      if (progress.message) {
+        errorContainer.style.display = "block";
+        errorText.className = "info";
+        errorText.textContent = progress.message;
+      }
       loadStatus(); // Refresh counts
     }
 
@@ -86,6 +105,7 @@ chrome.runtime.onMessage.addListener((message) => {
       statusText.className = "value disconnected";
       progressContainer.style.display = "none";
       errorContainer.style.display = "block";
+      errorText.className = "error";
       errorText.textContent = progress.error || "Sync failed";
     }
   }

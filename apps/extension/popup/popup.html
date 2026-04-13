@@ -46,6 +46,13 @@
       text-align: center;
       margin-top: 4px;
     }
+    .sync-warning {
+      font-size: 11px;
+      color: #f97316;
+      text-align: center;
+      margin-top: 6px;
+      font-weight: 500;
+    }
     .actions {
       margin-top: 16px;
       display: flex;
@@ -82,6 +89,12 @@
     .error {
       font-size: 12px;
       color: #ef4444;
+      margin-top: 8px;
+      text-align: center;
+    }
+    .info {
+      font-size: 12px;
+      color: #a1a1aa;
       margin-top: 8px;
       text-align: center;
     }
@@ -132,6 +145,7 @@
 
     <div id="progress-container" style="display:none;">
       <p class="progress-text" id="progress-text"></p>
+      <p class="sync-warning">Do not close this extension until the sync is over</p>
     </div>
 
     <div id="error-container" style="display:none;">
@@ -141,7 +155,7 @@
     <div class="actions">
       <button class="btn-primary" id="btn-sync">Sync Now</button>
       <button class="btn-secondary" id="btn-dashboard">Open Dashboard</button>
-      <button class="btn-link" id="btn-disconnect">Disconnect</button>
+      <button class="btn-secondary" id="btn-disconnect">Clear Token</button>
     </div>
   </div>
 
