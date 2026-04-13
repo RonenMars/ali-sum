@@ -93,13 +93,13 @@ btnSync.addEventListener("click", () => {
 
 btnDashboard.addEventListener("click", async () => {
   const result = await chrome.storage.local.get("apiBase");
-  const base = result.apiBase || "http://localhost:3000";
+  const base = result.apiBase || __API_BASE__;
   chrome.tabs.create({ url: base });
 });
 
 btnConnect.addEventListener("click", async () => {
   const result = await chrome.storage.local.get("apiBase");
-  const base = result.apiBase || "http://localhost:3000";
+  const base = result.apiBase || __API_BASE__;
   chrome.tabs.create({ url: `${base}/login` });
 });
 

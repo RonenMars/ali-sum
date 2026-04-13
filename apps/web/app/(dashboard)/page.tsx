@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { SummaryCards } from "@/components/charts/summary-cards";
@@ -76,7 +77,10 @@ async function getRecentOrders(userId: string) {
 
 export default async function DashboardPage() {
   const session = await auth();
-  const userId = session!.user!.id!;
+  if (!session?.user?.id) {
+    redirect("/login");
+  }
+  const userId = session.user.id;
 
   const [summary, spending, sellers, recentOrders] = await Promise.all([
     getSummary(userId),

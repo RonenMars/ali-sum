@@ -1,10 +1,8 @@
 import { ScrapedOrder, SyncResult } from "./types";
 
-const API_BASE = "http://localhost:3000"; // TODO: make configurable
-
 export async function getApiBase(): Promise<string> {
   const result = await chrome.storage.local.get("apiBase");
-  return result.apiBase || API_BASE;
+  return result.apiBase || __API_BASE__;
 }
 
 export async function getToken(): Promise<string | null> {

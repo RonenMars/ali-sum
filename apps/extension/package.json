@@ -3,8 +3,8 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "build": "esbuild popup/popup.tsx content/scraper.ts background/service-worker.ts --bundle --outdir=dist --target=chrome110 --format=esm",
-    "watch": "npm run build -- --watch",
+    "build": "node build.mjs",
+    "watch": "node build.mjs --watch",
     "clean": "rm -rf dist"
   },
   "devDependencies": {
