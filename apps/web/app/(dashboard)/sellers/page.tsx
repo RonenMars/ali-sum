@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { formatAmount } from "@/lib/format";
 import { SellersChart } from "@/components/charts/sellers-chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -31,7 +32,11 @@ async function getSellers(userId: string) {
 export default async function SellersPage() {
   const session = await auth();
   const userId = session!.user!.id!;
-  const sellers = await getSellers(userId);
+  const [sellers, primaryOrder] = await Promise.all([
+    getSellers(userId),
+    prisma.order.findFirst({ where: { userId }, select: { currency: true }, orderBy: { orderDate: "desc" } }),
+  ]);
+  const primaryCurrency = primaryOrder?.currency ?? "USD";
 
   return (
     <div className="space-y-8">
@@ -47,7 +52,7 @@ export default async function SellersPage() {
           <CardTitle className="text-base">Top Sellers by Spending</CardTitle>
         </CardHeader>
         <CardContent>
-          <SellersChart data={sellers.slice(0, 10)} />
+          <SellersChart data={sellers.slice(0, 10)} currency={primaryCurrency} />
         </CardContent>
       </Card>
 
@@ -77,7 +82,7 @@ export default async function SellersPage() {
                       {seller.orderCount}
                     </TableCell>
                     <TableCell className="text-right">
-                      ${seller.totalSpent.toFixed(2)}
+                      {formatAmount(seller.totalSpent, primaryCurrency)}
                     </TableCell>
                   </TableRow>
                 ))}
