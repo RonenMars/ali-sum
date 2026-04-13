@@ -10,12 +10,29 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const period = searchParams.get("period") || "month";
+  const from = searchParams.get("from");
+  const to = searchParams.get("to");
 
-  const orders = await prisma.order.findMany({
-    where: { userId },
-    select: { orderDate: true, totalAmount: true },
-    orderBy: { orderDate: "asc" },
-  });
+  const dateFilter: { gte?: Date; lt?: Date } = {};
+  if (from) dateFilter.gte = new Date(from);
+  if (to) {
+    const toDate = new Date(to);
+    toDate.setDate(toDate.getDate() + 1);
+    dateFilter.lt = toDate;
+  }
+
+  const [orders, primaryOrder] = await Promise.all([
+    prisma.order.findMany({
+      where: {
+        userId,
+        ...(Object.keys(dateFilter).length && { orderDate: dateFilter }),
+      },
+      select: { orderDate: true, totalAmount: true },
+      orderBy: { orderDate: "asc" },
+    }),
+    prisma.order.findFirst({ where: { userId }, select: { currency: true }, orderBy: { orderDate: "desc" } }),
+  ]);
+  const currency = primaryOrder?.currency ?? "USD";
 
   const grouped = new Map<string, { amount: number; orderCount: number }>();
 
@@ -51,5 +68,5 @@ export async function GET(req: NextRequest) {
     orderCount: data.orderCount,
   }));
 
-  return NextResponse.json({ series });
+  return NextResponse.json({ series, currency });
 }

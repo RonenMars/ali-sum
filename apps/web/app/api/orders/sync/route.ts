@@ -3,6 +3,16 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getAuthUserId } from "@/lib/api-auth";
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
+}
+
 const orderItemSchema = z.object({
   title: z.string(),
   price: z.number(),
@@ -29,7 +39,7 @@ const syncBodySchema = z.object({
 export async function POST(req: NextRequest) {
   const userId = await getAuthUserId(req);
   if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: CORS_HEADERS });
   }
 
   const body = await req.json();
@@ -38,7 +48,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: parsed.error.flatten().fieldErrors },
-      { status: 400 }
+      { status: 400, headers: CORS_HEADERS }
     );
   }
 
@@ -57,41 +67,43 @@ export async function POST(req: NextRequest) {
   let skipped = 0;
 
   try {
-    for (const order of orders) {
-      const existing = await prisma.order.findUnique({
-        where: {
-          userId_aliOrderId: { userId, aliOrderId: order.aliOrderId },
-        },
-      });
+    // Check which orders already exist in one query to avoid per-row round-trips.
+    const existingOrders = await prisma.order.findMany({
+      where: { userId, aliOrderId: { in: orders.map((o) => o.aliOrderId) } },
+      select: { aliOrderId: true },
+    });
+    const existingIds = new Set(existingOrders.map((o) => o.aliOrderId));
+    skipped = existingIds.size;
 
-      if (existing) {
-        skipped++;
-        continue;
-      }
+    const newOrders = orders.filter((o) => !existingIds.has(o.aliOrderId));
 
-      await prisma.order.create({
-        data: {
-          userId,
-          aliOrderId: order.aliOrderId,
-          orderDate: new Date(order.orderDate),
-          totalAmount: order.totalAmount,
-          currency: order.currency,
-          status: order.status,
-          sellerName: order.sellerName,
-          shippingCost: order.shippingCost,
-          items: {
-            create: order.items.map((item) => ({
-              title: item.title,
-              price: item.price,
-              quantity: item.quantity,
-              imageUrl: item.imageUrl,
-              productUrl: item.productUrl,
-            })),
-          },
-        },
-      });
-
-      created++;
+    if (newOrders.length > 0) {
+      await prisma.$transaction(
+        newOrders.map((order) =>
+          prisma.order.create({
+            data: {
+              userId,
+              aliOrderId: order.aliOrderId,
+              orderDate: new Date(order.orderDate),
+              totalAmount: order.totalAmount,
+              currency: order.currency,
+              status: order.status,
+              sellerName: order.sellerName,
+              shippingCost: order.shippingCost,
+              items: {
+                create: order.items.map((item) => ({
+                  title: item.title,
+                  price: item.price,
+                  quantity: item.quantity,
+                  imageUrl: item.imageUrl,
+                  productUrl: item.productUrl,
+                })),
+              },
+            },
+          })
+        )
+      );
+      created = newOrders.length;
     }
 
     await prisma.syncLog.update({
@@ -103,8 +115,10 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ created, skipped, syncLogId: syncLog.id });
+    return NextResponse.json({ created, skipped, syncLogId: syncLog.id }, { headers: CORS_HEADERS });
   } catch (error) {
+    console.error("[sync] Error during sync:", error);
+
     await prisma.syncLog.update({
       where: { id: syncLog.id },
       data: {
@@ -117,7 +131,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(
       { error: "Sync failed", created, skipped },
-      { status: 500 }
+      { status: 500, headers: CORS_HEADERS }
     );
   }
 }
