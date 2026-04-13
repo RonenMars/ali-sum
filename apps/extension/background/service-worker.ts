@@ -40,7 +40,9 @@ async function findOrOpenOrdersTab(): Promise<number> {
   return tab.id!;
 }
 
-async function scrapeTab(tabId: number): Promise<{ orders: ScrapedOrder[]; hasNextPage: boolean }> {
+function sendScrapeMessage(
+  tabId: number,
+): Promise<{ orders: ScrapedOrder[]; hasNextPage: boolean }> {
   return new Promise((resolve, reject) => {
     chrome.tabs.sendMessage(tabId, { type: "SCRAPE_ORDERS" }, (response) => {
       if (chrome.runtime.lastError) {
@@ -50,6 +52,26 @@ async function scrapeTab(tabId: number): Promise<{ orders: ScrapedOrder[]; hasNe
       resolve(response);
     });
   });
+}
+
+async function scrapeTab(tabId: number): Promise<{ orders: ScrapedOrder[]; hasNextPage: boolean }> {
+  try {
+    return await sendScrapeMessage(tabId);
+  } catch (err) {
+    // Content script likely isn't loaded (e.g. tab was open before extension reload).
+    // Inject it on-demand and retry once.
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!/Receiving end does not exist|Could not establish connection/i.test(msg)) {
+      throw err;
+    }
+
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ["dist/scraper.js"],
+    });
+
+    return sendScrapeMessage(tabId);
+  }
 }
 
 async function startSync() {

@@ -3,7 +3,7 @@
   "name": "AliSum — AliExpress Expense Tracker",
   "version": "1.0.0",
   "description": "Sync your AliExpress order history for expense analytics",
-  "permissions": ["storage", "activeTab", "tabs"],
+  "permissions": ["storage", "activeTab", "tabs", "scripting"],
   "host_permissions": ["https://*.aliexpress.com/*"],
   "action": {
     "default_popup": "popup/popup.html",
