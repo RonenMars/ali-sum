@@ -1,0 +1,15 @@
+{
+  "name": "ali-sum-extension",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "build": "esbuild popup/popup.tsx content/scraper.ts background/service-worker.ts --bundle --outdir=dist --target=chrome110 --format=esm",
+    "watch": "npm run build -- --watch",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "typescript": "^5.0.0",
+    "@types/chrome": "^0.0.300"
+  }
+}

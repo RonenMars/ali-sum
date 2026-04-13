@@ -1,0 +1,5 @@
+{
+  "name": "ali-sum",
+  "private": true,
+  "workspaces": ["apps/*"]
+}
