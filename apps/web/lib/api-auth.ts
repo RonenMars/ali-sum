@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { auth } from "./auth";
-import { prisma } from "./prisma";
+import { prisma } from "@/lib/prisma";
 import { jwtVerify } from "jose";
 
 export async function getAuthUserId(req?: NextRequest): Promise<string | null> {

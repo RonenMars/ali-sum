@@ -2,9 +2,9 @@ import { Suspense } from "react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatAmount } from "@/lib/format";
+import { getShippingStatus } from "@/lib/shipping-status";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -95,42 +95,62 @@ export default async function OrdersPage({ searchParams }: PageProps) {
                     <TableHead>Order ID</TableHead>
                     <TableHead>Seller</TableHead>
                     <TableHead>Items</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>Shipping Status</TableHead>
+                    <TableHead>Tracking</TableHead>
                     <TableHead className="text-right">Total</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {orders.map((order) => (
-                    <TableRow key={order.id}>
-                      <TableCell>
-                        {new Date(order.orderDate).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell className="font-mono text-xs">
-                        <a
-                          href={`https://www.aliexpress.com/p/order/detail.html?orderId=${order.aliOrderId}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="hover:underline text-blue-600"
-                        >
-                          {order.aliOrderId}
-                        </a>
-                      </TableCell>
-                      <TableCell>{order.sellerName || "—"}</TableCell>
-                      <TableCell>
-                        <span title={order.items.map((i) => i.title).join(", ")}>
-                          {order.items.length} item{order.items.length !== 1 ? "s" : ""}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary" className="text-xs">
-                          {order.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatAmount(order.totalAmount, order.currency)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {orders.map((order) => {
+                    const statusInfo = getShippingStatus(order.status);
+                    return (
+                      <TableRow key={order.id}>
+                        <TableCell>
+                          {new Date(order.orderDate).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="font-mono text-xs">
+                          <a
+                            href={`https://www.aliexpress.com/p/order/detail.html?orderId=${order.aliOrderId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:underline text-blue-600"
+                          >
+                            {order.aliOrderId}
+                          </a>
+                        </TableCell>
+                        <TableCell>{order.sellerName || "—"}</TableCell>
+                        <TableCell>
+                          <span title={order.items.map((i) => i.title).join(", ")}>
+                            {order.items.length} item{order.items.length !== 1 ? "s" : ""}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            className={`inline-flex h-5 items-center rounded-full px-2 text-xs font-medium ${statusInfo.className}`}
+                          >
+                            {statusInfo.label}
+                          </span>
+                        </TableCell>
+                        <TableCell className="font-mono text-xs text-muted-foreground">
+                          {order.trackingNumber ? (
+                            <span title={order.carrier ?? undefined}>
+                              {order.trackingNumber}
+                              {order.carrier && (
+                                <span className="ml-1 font-sans text-[10px] text-muted-foreground/70">
+                                  ({order.carrier})
+                                </span>
+                              )}
+                            </span>
+                          ) : (
+                            "—"
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatAmount(order.totalAmount, order.currency)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
 

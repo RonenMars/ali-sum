@@ -29,6 +29,9 @@ const orderSchema = z.object({
   status: z.string(),
   sellerName: z.string().optional(),
   shippingCost: z.number().default(0),
+  trackingNumber: z.string().optional(),
+  carrier: z.string().optional(),
+  estimatedDelivery: z.string().optional(),
   items: z.array(orderItemSchema),
 });
 
@@ -90,6 +93,9 @@ export async function POST(req: NextRequest) {
               status: order.status,
               sellerName: order.sellerName,
               shippingCost: order.shippingCost,
+              trackingNumber: order.trackingNumber,
+              carrier: order.carrier,
+              estimatedDelivery: order.estimatedDelivery ? new Date(order.estimatedDelivery) : undefined,
               items: {
                 create: order.items.map((item) => ({
                   title: item.title,

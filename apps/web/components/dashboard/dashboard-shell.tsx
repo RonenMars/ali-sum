@@ -16,6 +16,7 @@ const navItems = [
   { href: "/spending", label: "Spending" },
   { href: "/sellers", label: "Sellers" },
   { href: "/orders", label: "Orders" },
+  { href: "/shipping", label: "Shipping" },
   { href: "/settings", label: "Settings" },
 ];
 
