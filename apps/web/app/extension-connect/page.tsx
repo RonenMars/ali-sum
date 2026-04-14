@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,7 +22,7 @@ declare global {
   }
 }
 
-export default function ExtensionConnectPage() {
+function ExtensionConnectContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const extensionId = searchParams.get("extensionId");
@@ -86,60 +86,68 @@ export default function ExtensionConnectPage() {
   }, [extensionId]);
 
   return (
+    <CardContent className="space-y-4 text-sm">
+      {status === "loading" && (
+        <p className="text-center text-muted-foreground">Connecting…</p>
+      )}
+
+      {status === "success" && (
+        <>
+          <p className="text-center text-green-500">
+            Extension connected successfully.
+          </p>
+          <p className="text-center text-muted-foreground">
+            You can close this tab and return to the extension popup.
+          </p>
+          <Button className="w-full" onClick={() => window.close()}>
+            Close
+          </Button>
+        </>
+      )}
+
+      {status === "needs-login" && (
+        <>
+          <p className="text-center text-muted-foreground">
+            You need to sign in before the extension can be connected.
+          </p>
+          <Button
+            className="w-full"
+            onClick={() => {
+              const next = `/extension-connect?extensionId=${encodeURIComponent(extensionId ?? "")}`;
+              router.push(`/login?callbackUrl=${encodeURIComponent(next)}`);
+            }}
+          >
+            Sign in
+          </Button>
+        </>
+      )}
+
+      {status === "error" && (
+        <>
+          <p className="text-center text-destructive">{errorMsg}</p>
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => window.location.reload()}
+          >
+            Retry
+          </Button>
+        </>
+      )}
+    </CardContent>
+  );
+}
+
+export default function ExtensionConnectPage() {
+  return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Connect Extension</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4 text-sm">
-          {status === "loading" && (
-            <p className="text-center text-muted-foreground">Connecting…</p>
-          )}
-
-          {status === "success" && (
-            <>
-              <p className="text-center text-green-500">
-                Extension connected successfully.
-              </p>
-              <p className="text-center text-muted-foreground">
-                You can close this tab and return to the extension popup.
-              </p>
-              <Button className="w-full" onClick={() => window.close()}>
-                Close
-              </Button>
-            </>
-          )}
-
-          {status === "needs-login" && (
-            <>
-              <p className="text-center text-muted-foreground">
-                You need to sign in before the extension can be connected.
-              </p>
-              <Button
-                className="w-full"
-                onClick={() => {
-                  const next = `/extension-connect?extensionId=${encodeURIComponent(extensionId ?? "")}`;
-                  router.push(`/login?callbackUrl=${encodeURIComponent(next)}`);
-                }}
-              >
-                Sign in
-              </Button>
-            </>
-          )}
-
-          {status === "error" && (
-            <>
-              <p className="text-center text-destructive">{errorMsg}</p>
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => window.location.reload()}
-              >
-                Retry
-              </Button>
-            </>
-          )}
-        </CardContent>
+        <Suspense>
+          <ExtensionConnectContent />
+        </Suspense>
       </Card>
     </div>
   );
