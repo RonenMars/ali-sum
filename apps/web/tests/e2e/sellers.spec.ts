@@ -26,7 +26,7 @@ test.describe("Sellers page", () => {
 
   test("shows all 5 seeded sellers", async ({ page }) => {
     for (const seller of ["GreatStore", "TechShop", "FancyGoods", "BudgetDeals", "QuickShip"]) {
-      await expect(page.getByText(seller)).toBeVisible();
+      await expect(page.getByRole("cell", { name: seller })).toBeVisible();
     }
   });
 

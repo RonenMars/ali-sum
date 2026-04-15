@@ -25,7 +25,7 @@ test.describe("Spending page", () => {
     await expect(page.getByText("Total Spent")).toBeVisible();
     // After data loads, should show a dollar amount (not $0.00)
     await page.waitForTimeout(1000); // let the fetch complete
-    await expect(page.getByText(/\$\d+/)).toBeVisible();
+    await expect(page.getByText("Total Spent").locator("..").locator("..").getByText(/\$\d+/)).toBeVisible();
   });
 
   test("shows the total orders summary card", async ({ page }) => {
@@ -37,6 +37,8 @@ test.describe("Spending page", () => {
   });
 
   test("switching to Monthly tab fetches monthly data", async ({ page }) => {
+    // Monthly is the default tab, so switch away first to ensure a new request fires
+    await page.getByRole("tab", { name: "Weekly" }).click();
     const [response] = await Promise.all([
       page.waitForResponse((r) => r.url().includes("/api/analytics/spending") && r.url().includes("period=month")),
       page.getByRole("tab", { name: "Monthly" }).click(),

@@ -16,7 +16,7 @@ Next.js 16 App Router dashboard + API backend.
 
 ### Prisma v7
 
-Prisma client is generated to `lib/generated/prisma/`. Import from `@/lib/generated/prisma/client` (no index file). Always use the singleton from `@/lib/prisma.ts` — it requires a `PrismaPg` adapter.
+Prisma client is generated to `lib/generated/prisma/`. Import from `@/lib/generated/prisma/client` (no index file). Always use the singleton from `@/lib/prisma.ts` — it switches adapters at runtime: `PrismaPg` for PostgreSQL (production), `BetterSqlite3` when `DATABASE_URL` starts with `file:` (E2E tests).
 
 ### Auth
 
@@ -35,6 +35,7 @@ Extension POSTs scraped orders to `/api/orders/sync`. Orders are upserted by `(u
 ```bash
 npm run dev            # Dev server on :3000
 npm run build          # Production build
+npm run test:e2e       # Playwright E2E tests (SQLite, no Postgres needed)
 npx prisma generate    # Regenerate Prisma client
 npx prisma migrate dev # Run migrations
 ```

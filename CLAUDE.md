@@ -22,7 +22,7 @@ Monorepo with npm workspaces:
 
 ### Prisma v7
 
-Prisma client is generated to `lib/generated/prisma/`. Import from `@/lib/generated/prisma/client` (no index file). Always use the singleton from `@/lib/prisma.ts` — it requires a `PrismaPg` adapter.
+Prisma client is generated to `lib/generated/prisma/`. Import from `@/lib/generated/prisma/client` (no index file). Always use the singleton from `@/lib/prisma.ts` — it switches adapters at runtime: `PrismaPg` for PostgreSQL (production), `BetterSqlite3` when `DATABASE_URL` starts with `file:` (E2E tests).
 
 ### Auth
 
@@ -42,6 +42,7 @@ Extension stores API token in `chrome.storage.local`. Content script on `aliexpr
 # Web app
 npm -w apps/web run dev          # Dev server on :3000
 npm -w apps/web run build        # Production build
+npm -w apps/web run test:e2e     # Playwright E2E tests (SQLite, no Postgres needed)
 npx prisma generate              # Regenerate Prisma client (run from apps/web/)
 npx prisma migrate dev           # Run migrations (run from apps/web/)
 

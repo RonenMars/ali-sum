@@ -23,6 +23,7 @@ Inspired by [ali-t](https://github.com/RonenMars/ali-t).
 - Spending over time (weekly / monthly / yearly) with area charts
 - Top sellers breakdown with bar charts
 - Paginated order history table with status badges
+- Shipping status tracking per order
 - Sync history tracking
 - Multi-user support with JWT authentication
 
@@ -45,7 +46,7 @@ ali-sum/
 │   ├── web/                    # Next.js dashboard + API
 │   │   ├── app/
 │   │   │   ├── (auth)/         # Login & register pages
-│   │   │   ├── (dashboard)/    # Overview, spending, sellers, orders, settings
+│   │   │   ├── (dashboard)/    # Overview, spending, sellers, orders, shipping, settings
 │   │   │   └── api/            # Auth, orders sync, analytics endpoints
 │   │   ├── components/
 │   │   │   ├── charts/         # SpendingChart, SellersChart, SummaryCards
