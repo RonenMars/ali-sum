@@ -14,6 +14,9 @@ export interface ScrapedOrder {
   status: string;
   sellerName: string;
   shippingCost: number;
+  trackingNumber?: string;
+  carrier?: string;
+  estimatedDelivery?: string;
   items: ScrapedOrderItem[];
 }
 

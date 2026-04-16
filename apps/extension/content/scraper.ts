@@ -88,6 +88,54 @@ function scrapeItems(orderEl: HTMLElement): ScrapedOrderItem[] {
   return items;
 }
 
+function scrapeTracking(orderEl: HTMLElement): {
+  trackingNumber?: string;
+  carrier?: string;
+  estimatedDelivery?: string;
+} {
+  // Tracking info is shown in the order card for shipped/awaiting-delivery orders.
+  // Selectors verified against aliexpress.com/p/order/index.html — re-verify in
+  // DevTools if AliExpress ships a UI update.
+
+  // Pattern 1: dedicated logistics text element (shown for shipped/awaiting orders)
+  const logisticEl = orderEl.querySelector<HTMLElement>(
+    ".order-item-content-opt-logistics, .order-item-logistics, [class*='logistics']"
+  );
+  if (logisticEl) {
+    const text = logisticEl.innerText.trim();
+    // Tracking numbers are typically 10–30 alphanumeric chars; extract the first match.
+    const match = text.match(/\b([A-Z]{2}[0-9]{8,}[A-Z]{2}|[A-Z0-9]{10,30})\b/);
+    if (match) return { trackingNumber: match[1] };
+  }
+
+  // Pattern 2: "Track Order" / "Track shipment" link — href often contains orderId
+  // and a separate trackId or logisticsNo query param.
+  const trackLinks = orderEl.querySelectorAll<HTMLAnchorElement>(
+    "a[href*='track'], a[href*='logistic'], a[href*='logistics']"
+  );
+  for (const link of Array.from(trackLinks)) {
+    try {
+      const url = new URL(link.href);
+      const trackId =
+        url.searchParams.get("trackId") ||
+        url.searchParams.get("logisticsNo") ||
+        url.searchParams.get("tracking");
+      if (trackId) return { trackingNumber: trackId };
+    } catch {
+      // malformed URL — skip
+    }
+  }
+
+  // Pattern 3: data-* attribute on the order element or its children
+  const trackAttr =
+    orderEl.getAttribute("data-tracking") ||
+    orderEl.querySelector("[data-tracking]")?.getAttribute("data-tracking") ||
+    orderEl.querySelector("[data-logistics-no]")?.getAttribute("data-logistics-no");
+  if (trackAttr) return { trackingNumber: trackAttr };
+
+  return {};
+}
+
 function scrapeOrdersFromPage(): ScrapedOrder[] {
   const orders: ScrapedOrder[] = [];
   const orderEls = document.querySelectorAll<HTMLElement>(".order-item");
@@ -148,6 +196,9 @@ function scrapeOrdersFromPage(): ScrapedOrder[] {
       // --- Items ---
       const items = scrapeItems(orderEl);
 
+      // --- Tracking (only present for shipped / awaiting-delivery orders) ---
+      const tracking = scrapeTracking(orderEl);
+
       // --- Total amount ---
       // .order-item-content-opt-price-total contains currency + amount as child spans
       const totalEls = orderEl.querySelectorAll<HTMLElement>(
@@ -170,6 +221,7 @@ function scrapeOrdersFromPage(): ScrapedOrder[] {
         sellerName,
         // Shipping cost is only shown on the order detail page, not the list page
         shippingCost: 0,
+        ...tracking,
         items,
       });
     } catch (err) {

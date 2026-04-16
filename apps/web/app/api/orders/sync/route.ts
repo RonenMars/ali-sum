@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
   let skipped = 0;
 
   try {
-    // Check which orders already exist in one query to avoid per-row round-trips.
+    // Check which orders already exist in one query so we can count created vs updated.
     const existingOrders = await prisma.order.findMany({
       where: { userId, aliOrderId: { in: orders.map((o) => o.aliOrderId) } },
       select: { aliOrderId: true },
@@ -79,38 +79,54 @@ export async function POST(req: NextRequest) {
     skipped = existingIds.size;
 
     const newOrders = orders.filter((o) => !existingIds.has(o.aliOrderId));
+    const existingToUpdate = orders.filter((o) => existingIds.has(o.aliOrderId));
 
-    if (newOrders.length > 0) {
-      await prisma.$transaction(
-        newOrders.map((order) =>
-          prisma.order.create({
-            data: {
-              userId,
-              aliOrderId: order.aliOrderId,
-              orderDate: new Date(order.orderDate),
-              totalAmount: order.totalAmount,
-              currency: order.currency,
-              status: order.status,
-              sellerName: order.sellerName,
-              shippingCost: order.shippingCost,
-              trackingNumber: order.trackingNumber,
-              carrier: order.carrier,
-              estimatedDelivery: order.estimatedDelivery ? new Date(order.estimatedDelivery) : undefined,
-              items: {
-                create: order.items.map((item) => ({
-                  title: item.title,
-                  price: item.price,
-                  quantity: item.quantity,
-                  imageUrl: item.imageUrl,
-                  productUrl: item.productUrl,
-                })),
-              },
+    await prisma.$transaction([
+      // Create new orders with their items
+      ...newOrders.map((order) =>
+        prisma.order.create({
+          data: {
+            userId,
+            aliOrderId: order.aliOrderId,
+            orderDate: new Date(order.orderDate),
+            totalAmount: order.totalAmount,
+            currency: order.currency,
+            status: order.status,
+            sellerName: order.sellerName,
+            shippingCost: order.shippingCost,
+            trackingNumber: order.trackingNumber,
+            carrier: order.carrier,
+            estimatedDelivery: order.estimatedDelivery ? new Date(order.estimatedDelivery) : undefined,
+            items: {
+              create: order.items.map((item) => ({
+                title: item.title,
+                price: item.price,
+                quantity: item.quantity,
+                imageUrl: item.imageUrl,
+                productUrl: item.productUrl,
+              })),
             },
-          })
-        )
-      );
-      created = newOrders.length;
-    }
+          },
+        })
+      ),
+      // Update shipping-mutable fields on existing orders (status and tracking can
+      // change after initial sync, e.g. when a tracking number becomes available).
+      ...existingToUpdate.map((order) =>
+        prisma.order.updateMany({
+          where: { userId, aliOrderId: order.aliOrderId },
+          data: {
+            status: order.status,
+            ...(order.trackingNumber !== undefined && { trackingNumber: order.trackingNumber }),
+            ...(order.carrier !== undefined && { carrier: order.carrier }),
+            ...(order.estimatedDelivery !== undefined && {
+              estimatedDelivery: new Date(order.estimatedDelivery),
+            }),
+          },
+        })
+      ),
+    ]);
+
+    created = newOrders.length;
 
     await prisma.syncLog.update({
       where: { id: syncLog.id },
