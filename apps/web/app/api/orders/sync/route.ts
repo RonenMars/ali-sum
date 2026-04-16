@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
     const newOrders = orders.filter((o) => !existingIds.has(o.aliOrderId));
     const existingToUpdate = orders.filter((o) => existingIds.has(o.aliOrderId));
 
-    await prisma.$transaction([
+    await Promise.all([
       // Create new orders with their items
       ...newOrders.map((order) =>
         prisma.order.create({
