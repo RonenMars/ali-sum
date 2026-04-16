@@ -57,6 +57,17 @@ npm -w apps/extension run watch  # Watch mode
 - `AUTH_SECRET` — NextAuth secret for JWT signing
 - `AUTH_URL` — Base URL (http://localhost:3000 in dev)
 
-## Content Script (Incomplete)
+## Content Script
 
-`apps/extension/content/scraper.ts` has placeholder DOM scraping logic. The CSS selectors for AliExpress order pages need to be reverse-engineered from live pages using DevTools. The `ScrapedOrder` interface in `apps/extension/lib/types.ts` defines the expected data shape.
+`apps/extension/content/scraper.ts` scrapes order list pages. Selectors were verified against `aliexpress.com/p/order/index.html` — re-verify in DevTools if AliExpress ships a UI update.
+
+Tracking is scraped via `scrapeTracking()` using three fallback strategies:
+1. `.order-item-content-opt-logistics` / `[class*='logistics']` text — regex extracts the tracking number
+2. `<a href*='track'>` / `<a href*='logistic'>` — parses `trackId`, `logisticsNo`, or `tracking` query params
+3. `data-tracking` / `data-logistics-no` attributes on the order element
+
+`ScrapedOrder` in `apps/extension/lib/types.ts` defines the full data shape including optional `trackingNumber`, `carrier`, and `estimatedDelivery`.
+
+### Sync upsert behaviour
+
+`/api/orders/sync` creates new orders and updates existing ones in a single Prisma `$transaction`. Fields updated on re-sync: `status`, `trackingNumber`, `carrier`, `estimatedDelivery` (only when present in the scraped payload).

@@ -173,7 +173,9 @@ Go back to `http://localhost:3000` — the dashboard shows spending summaries, c
 
 ## Status
 
-MVP is complete and functional. The content script (`apps/extension/content/scraper.ts`) uses DOM selectors verified against the current AliExpress order page. AliExpress ships frequent UI changes — if scraping breaks, open DevTools on the order page and re-check the selectors listed in that file.
+MVP is complete and functional. The content script (`apps/extension/content/scraper.ts`) scrapes order data including tracking numbers (three fallback strategies: logistics element, track-order link params, `data-*` attributes). Re-syncing existing orders updates their status and tracking fields rather than skipping them.
+
+AliExpress ships frequent UI changes — if scraping breaks, open DevTools on the order page and re-check the selectors in `scraper.ts`.
 
 ## License
 
