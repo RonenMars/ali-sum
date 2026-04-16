@@ -1,5 +1,11 @@
 # Wiki Activity Log
 
+## 2026-04-16 — shared date filter constant
+
+- **Web:** Extracted shared date-filter config to `apps/web/lib/date-filter.ts` (`DATE_PRESETS`, `DEFAULT_DATE_PRESET`, `DATE_FILTER_STORAGE_KEY`, `getDefaultDateRange()`).
+- Default preset changed from **Last 30 days** to **This month**.
+- `components/date-range-filter.tsx`, `app/(dashboard)/spending/page.tsx`, and `app/(dashboard)/page.tsx` (server-side fallback) all import from the shared lib — no more duplicated preset arrays.
+
 ## 2026-04-16 — tracking scraping + upsert on re-sync
 
 - **Extension:** Added `scrapeTracking()` to `apps/extension/content/scraper.ts` with three fallback strategies: logistics text element selector, track-order link `href` query params (`trackId` / `logisticsNo` / `tracking`), and `data-*` attributes.

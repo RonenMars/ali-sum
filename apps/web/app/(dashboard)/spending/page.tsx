@@ -1,25 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { format, startOfWeek, startOfMonth, startOfYear, subDays, subMonths } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SpendingChart } from "@/components/charts/spending-chart";
+import { DATE_FILTER_STORAGE_KEY, DEFAULT_DATE_PRESET, DATE_PRESETS } from "@/lib/date-filter";
 
 type Period = "week" | "month" | "year";
 type SeriesItem = { period: string; amount: number; orderCount: number };
 
-const STORAGE_KEY = "ali-sum:date-filter";
-const DEFAULT_PRESET = "Last 30 days";
-
-const PRESETS = [
-  { label: "This week", getRange: () => ({ from: format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd"), to: format(new Date(), "yyyy-MM-dd") }) },
-  { label: "Last 7 days", getRange: () => ({ from: format(subDays(new Date(), 6), "yyyy-MM-dd"), to: format(new Date(), "yyyy-MM-dd") }) },
-  { label: "This month", getRange: () => ({ from: format(startOfMonth(new Date()), "yyyy-MM-dd"), to: format(new Date(), "yyyy-MM-dd") }) },
-  { label: "Last 30 days", getRange: () => ({ from: format(subDays(new Date(), 29), "yyyy-MM-dd"), to: format(new Date(), "yyyy-MM-dd") }) },
-  { label: "Last 3 months", getRange: () => ({ from: format(subMonths(new Date(), 3), "yyyy-MM-dd"), to: format(new Date(), "yyyy-MM-dd") }) },
-  { label: "This year", getRange: () => ({ from: format(startOfYear(new Date()), "yyyy-MM-dd"), to: format(new Date(), "yyyy-MM-dd") }) },
-];
+const STORAGE_KEY = DATE_FILTER_STORAGE_KEY;
+const DEFAULT_PRESET = DEFAULT_DATE_PRESET;
+const PRESETS = DATE_PRESETS;
 
 const inputClass =
   "h-8 rounded-lg border border-border bg-background px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";

@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { format, subDays } from "date-fns";
+import { getDefaultDateRange } from "@/lib/date-filter";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { SummaryCards } from "@/components/charts/summary-cards";
@@ -127,9 +127,9 @@ export default async function DashboardPage({
   const userId = session.user.id;
 
   const { from, to, recentLimit: recentLimitParam } = await searchParams;
-  // Default to last 30 days when no filter is set
-  const effectiveFrom = from ?? format(subDays(new Date(), 29), "yyyy-MM-dd");
-  const effectiveTo = to ?? format(new Date(), "yyyy-MM-dd");
+  const defaultRange = getDefaultDateRange();
+  const effectiveFrom = from ?? defaultRange.from;
+  const effectiveTo = to ?? defaultRange.to;
   const { fromDate, toDate } = parseDateRange(effectiveFrom, effectiveTo);
   const recentLimit = Math.max(5, parseInt(recentLimitParam || "5"));
 

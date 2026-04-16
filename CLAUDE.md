@@ -32,6 +32,10 @@ Two auth flows: web sessions (NextAuth cookie) and extension API calls (Bearer J
 
 Route groups: `(auth)/` for login/register, `(dashboard)/` for authenticated pages. Dashboard layout in `(dashboard)/layout.tsx` checks session and redirects to `/login`. Dashboard pages use Server Components fetching via Prisma directly. Charts are client components.
 
+### Date Filter
+
+All dashboard pages share a date-range filter. The single source of truth is `apps/web/lib/date-filter.ts`, which exports `DATE_PRESETS`, `DEFAULT_DATE_PRESET` (currently `"This month"`), `DATE_FILTER_STORAGE_KEY`, and `getDefaultDateRange()`. Do not duplicate preset arrays in page components — import from this file. `getDefaultDateRange()` is used server-side in `app/(dashboard)/page.tsx` as the fallback when no URL params are present.
+
 ### Extension ↔ Backend Communication
 
 Extension stores API token in `chrome.storage.local`. Content script on `aliexpress.com/p/order/*` scrapes DOM. Service worker orchestrates pagination and POSTs to `/api/orders/sync`. Orders are upserted by `(userId, aliOrderId)` unique constraint.

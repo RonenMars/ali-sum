@@ -33,7 +33,7 @@ components/
 ├── charts/           # SpendingChart, SellersChart, SummaryCards
 ├── dashboard/        # DashboardShell, ExtensionTokenButton
 └── ui/               # shadcn/ui components
-lib/                  # Prisma client, auth config, API auth middleware
+lib/                  # Prisma client, auth config, API auth middleware, date-filter constants
 prisma/               # Schema & migrations
 ```
 
@@ -48,6 +48,16 @@ prisma/               # Schema & migrations
 | GET | `/api/analytics/summary` | Total spent, order count, averages |
 | GET | `/api/analytics/spending` | Time-series spending (week/month/year) |
 | GET | `/api/analytics/sellers` | Top sellers by spend |
+
+## Date Filtering
+
+All dashboard pages share a date-range filter. Presets and the default are defined in `lib/date-filter.ts`:
+
+- `DATE_PRESETS` — the ordered list of preset options shown in the UI
+- `DEFAULT_DATE_PRESET` — the preset applied on first visit (currently **"This month"**)
+- `getDefaultDateRange()` — called server-side to compute the fallback date range when no URL params are present
+
+To change the default filter, update `DEFAULT_DATE_PRESET` in `lib/date-filter.ts`.
 
 ## Commands
 
