@@ -9,6 +9,7 @@
     "lint": "eslint",
     "postinstall": "prisma generate && prisma generate --config=prisma.config.test.ts",
     "generate:test": "prisma generate --config=prisma.config.test.ts",
+    "db:reset": "prisma migrate reset --force",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"
   },
