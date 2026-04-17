@@ -65,7 +65,11 @@ npm -w apps/extension run watch  # Watch mode
 
 `apps/extension/content/scraper.ts` scrapes order list pages. Selectors were verified against `aliexpress.com/p/order/index.html` — re-verify in DevTools if AliExpress ships a UI update.
 
-Tracking is scraped via `scrapeTracking()` using three fallback strategies:
+Tracking is scraped in two layers:
+
+**Primary (popover hover):** After scraping all orders, `scrapeTrackingFromPopovers()` hovers each "Track order" button (`a.order-item-btn`) to trigger a `.order-track-popover` React portal. Extracts tracking number (`.tracking-number-title span`) and estimated delivery date from the popover. This stays on the order list page — no page navigation needed.
+
+**Fallback (inline):** `scrapeTracking()` tries three strategies on the order card itself:
 1. `.order-item-content-opt-logistics` / `[class*='logistics']` text — regex extracts the tracking number
 2. `<a href*='track'>` / `<a href*='logistic'>` — parses `trackId`, `logisticsNo`, or `tracking` query params
 3. `data-tracking` / `data-logistics-no` attributes on the order element
