@@ -31,9 +31,9 @@ function buildStatusFilter(filterLabel: string): { status: { contains: string; m
 const STATUS_KEYWORD_MAP: Record<string, string[]> = {
   "Payment Pending": ["payment pending", "awaiting payment", "unpaid"],
   "Payment Accepted": ["payment accepted", "paid", "payment complete"],
-  "Processing": ["processing", "preparing", "seller ship"],
+  "Processing": ["processing", "preparing", "seller ship", "ready to ship"],
   "Shipped": ["shipped", "dispatched"],
-  "In Transit": ["in transit", "on the way"],
+  "In Transit": ["in transit", "on the way", "awaiting delivery"],
   "Out for Delivery": ["out for delivery", "delivering"],
   "Delivered": ["delivered", "order complete", "completed", "received"],
   "Return / Refund": ["return", "refund"],

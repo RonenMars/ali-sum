@@ -17,7 +17,7 @@ const STATUS_MAP: Array<{ patterns: RegExp; label: string; className: string }> 
     className: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
   },
   {
-    patterns: /processing|preparing|seller\s*ship/i,
+    patterns: /processing|preparing|seller\s*ship|ready\s*to\s*ship/i,
     label: "Processing",
     className: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
   },
@@ -27,7 +27,7 @@ const STATUS_MAP: Array<{ patterns: RegExp; label: string; className: string }> 
     className: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400",
   },
   {
-    patterns: /in\s*transit|on\s*the\s*way/i,
+    patterns: /in\s*transit|on\s*the\s*way|awaiting\s*delivery/i,
     label: "In Transit",
     className: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400",
   },
