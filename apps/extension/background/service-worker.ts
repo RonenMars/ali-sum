@@ -15,6 +15,18 @@ function broadcastProgress(progress: SyncProgress) {
   });
 }
 
+function waitForTabLoad(tabId: number): Promise<void> {
+  return new Promise((resolve) => {
+    const listener = (tid: number, info: chrome.tabs.TabChangeInfo) => {
+      if (tid === tabId && info.status === "complete") {
+        chrome.tabs.onUpdated.removeListener(listener);
+        resolve();
+      }
+    };
+    chrome.tabs.onUpdated.addListener(listener);
+  });
+}
+
 async function findOrOpenOrdersTab(): Promise<number> {
   const tabs = await chrome.tabs.query({ url: "https://*.aliexpress.com/p/order/*" });
   if (tabs.length > 0 && tabs[0].id) {
@@ -26,16 +38,7 @@ async function findOrOpenOrdersTab(): Promise<number> {
     url: "https://www.aliexpress.com/p/order/index.html",
     active: true,
   });
-  // Wait for page to load
-  await new Promise<void>((resolve) => {
-    const listener = (tabId: number, info: chrome.tabs.TabChangeInfo) => {
-      if (tabId === tab.id && info.status === "complete") {
-        chrome.tabs.onUpdated.removeListener(listener);
-        resolve();
-      }
-    };
-    chrome.tabs.onUpdated.addListener(listener);
-  });
+  await waitForTabLoad(tab.id!);
 
   return tab.id!;
 }
@@ -64,6 +67,20 @@ function sendLoadMoreMessage(
         return;
       }
       resolve(response);
+    });
+  });
+}
+
+function sendTrackingDetailMessage(
+  tabId: number,
+): Promise<{ trackingNumber?: string; carrier?: string; estimatedDelivery?: string }> {
+  return new Promise((resolve, reject) => {
+    chrome.tabs.sendMessage(tabId, { type: "SCRAPE_TRACKING_DETAIL" }, (response) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
+      }
+      resolve(response || {});
     });
   });
 }
@@ -132,6 +149,50 @@ async function startSync() {
     }
 
     const allOrders = Array.from(ordersById.values());
+
+    // Enrich orders with tracking details from individual tracking pages.
+    // Only fetch tracking for orders that are likely in-transit.
+    const trackableOrders = allOrders.filter((o) =>
+      /awaiting delivery|shipped|in transit|on the way/i.test(o.status)
+    );
+
+    if (trackableOrders.length > 0) {
+      broadcastProgress({
+        status: "syncing",
+        currentPage: page,
+        totalPages: page,
+        ordersFound: allOrders.length,
+        message: `Fetching tracking details (0/${trackableOrders.length})...`,
+      });
+
+      for (let i = 0; i < trackableOrders.length; i++) {
+        const order = trackableOrders[i];
+        try {
+          await chrome.tabs.update(tabId, {
+            url: `https://www.aliexpress.com/p/tracking/index.html?tradeOrderId=${order.aliOrderId}`,
+          });
+          await waitForTabLoad(tabId);
+          await chrome.scripting.executeScript({
+            target: { tabId },
+            files: ["dist/scraper.js"],
+          });
+          const tracking = await sendTrackingDetailMessage(tabId);
+          if (tracking.trackingNumber) order.trackingNumber = tracking.trackingNumber;
+          if (tracking.carrier) order.carrier = tracking.carrier;
+          if (tracking.estimatedDelivery) order.estimatedDelivery = tracking.estimatedDelivery;
+        } catch (err) {
+          console.warn(`[ali-sum] Failed to fetch tracking for order ${order.aliOrderId}:`, err);
+        }
+
+        broadcastProgress({
+          status: "syncing",
+          currentPage: page,
+          totalPages: page,
+          ordersFound: allOrders.length,
+          message: `Fetching tracking details (${i + 1}/${trackableOrders.length})...`,
+        });
+      }
+    }
 
     broadcastProgress({
       status: "syncing",

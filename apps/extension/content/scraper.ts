@@ -270,6 +270,38 @@ async function clickLoadMore(): Promise<boolean> {
   return false;
 }
 
+function scrapeTrackingDetailPage(): {
+  trackingNumber?: string;
+  carrier?: string;
+  estimatedDelivery?: string;
+} {
+  const trackingEl = document.querySelector<HTMLElement>('[class*="logistic-info-v2--mailNoValue"]');
+  const carrierEl = document.querySelector<HTMLElement>('[class*="logistic-info-v2--carrierTitle"]');
+  const deliveryEl = document.querySelector<HTMLElement>('[class*="arrival-time-v2--title"]');
+
+  const trackingNumber = trackingEl?.innerText.trim() || undefined;
+  const carrier = carrierEl?.innerText.trim() || undefined;
+
+  let estimatedDelivery: string | undefined;
+  if (deliveryEl) {
+    const text = deliveryEl.innerText.trim();
+    // Format: "Delivery: Apr. 24 - May. 14" — use the end date of the range
+    const rangeMatch = text.match(/-\s*([A-Z][a-z]{2,8}\.?\s+\d{1,2})/);
+    const singleMatch = text.match(/([A-Z][a-z]{2,8}\.?\s+\d{1,2})/);
+    const dateStr = rangeMatch ? rangeMatch[1] : singleMatch ? singleMatch[1] : null;
+    if (dateStr) {
+      const cleaned = dateStr.replace(".", "");
+      const year = new Date().getFullYear();
+      const d = new Date(`${cleaned}, ${year}`);
+      if (!isNaN(d.getTime())) {
+        estimatedDelivery = d.toISOString();
+      }
+    }
+  }
+
+  return { trackingNumber, carrier, estimatedDelivery };
+}
+
 // Listen for scrape requests from the service worker
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === "SCRAPE_ORDERS") {
@@ -285,6 +317,25 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === "LOAD_MORE") {
     clickLoadMore().then((loaded) => {
       sendResponse({ type: "LOAD_MORE_RESULT", loaded, hasNextPage: hasNextPage() });
+    });
+    return true; // async response
+  }
+
+  if (message.type === "SCRAPE_TRACKING_DETAIL") {
+    // Tracking page is client-rendered — poll for elements to appear.
+    const deadline = Date.now() + 10000;
+    const poll = async () => {
+      while (Date.now() < deadline) {
+        const el = document.querySelector(
+          '[class*="logistic-info-v2--mailNoValue"], [class*="logistic-info-v2--carrierTitle"]'
+        );
+        if (el) break;
+        await new Promise((r) => setTimeout(r, 300));
+      }
+      return scrapeTrackingDetailPage();
+    };
+    poll().then((result) => {
+      sendResponse({ type: "SCRAPE_TRACKING_DETAIL_RESULT", ...result });
     });
     return true; // async response
   }
