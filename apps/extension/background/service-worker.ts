@@ -1,5 +1,5 @@
 import { syncOrders, getToken } from "../lib/api-client";
-import { SyncProgress, ScrapedOrder } from "../lib/types";
+import { SyncProgress, ScrapedOrder, TrackingDetail } from "../lib/types";
 
 let currentProgress: SyncProgress = {
   status: "idle",
@@ -71,9 +71,9 @@ function sendLoadMoreMessage(
   });
 }
 
-function sendTrackingDetailMessage(
+function sendTrackingDetailMessageRaw(
   tabId: number,
-): Promise<{ trackingNumber?: string; carrier?: string; estimatedDelivery?: string }> {
+): Promise<TrackingDetail & { captchaDetected?: boolean }> {
   return new Promise((resolve, reject) => {
     chrome.tabs.sendMessage(tabId, { type: "SCRAPE_TRACKING_DETAIL" }, (response) => {
       if (chrome.runtime.lastError) {
@@ -84,6 +84,25 @@ function sendTrackingDetailMessage(
     });
   });
 }
+
+async function sendTrackingDetailMessage(
+  tabId: number,
+): Promise<TrackingDetail & { captchaDetected?: boolean }> {
+  try {
+    return await sendTrackingDetailMessageRaw(tabId);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!/Receiving end does not exist|Could not establish connection/i.test(msg)) {
+      throw err;
+    }
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ["dist/scraper.js"],
+    });
+    return sendTrackingDetailMessageRaw(tabId);
+  }
+}
+
 
 async function scrapeTab(tabId: number): Promise<{ orders: ScrapedOrder[]; hasNextPage: boolean }> {
   try {
@@ -150,62 +169,61 @@ async function startSync() {
 
     const allOrders = Array.from(ordersById.values());
 
-    // Enrich orders with tracking details from individual tracking pages.
-    // Only fetch tracking for orders that are likely in-transit.
-    const trackableOrders = allOrders.filter((o) =>
-      /awaiting delivery|shipped|in transit|on the way/i.test(o.status)
+    // Enrich orders with tracking details by navigating to each order's
+    // tracking page. Only orders that have a "Track order" link are visited.
+    const ordersWithTracking = allOrders.filter(
+      (o) => o.trackingPageUrl && !o.trackingNumber,
     );
 
-    if (trackableOrders.length > 0) {
-      broadcastProgress({
-        status: "syncing",
-        currentPage: page,
-        totalPages: page,
-        ordersFound: allOrders.length,
-        message: `Fetching tracking details (0/${trackableOrders.length})...`,
-      });
+    let captchaDetected = false;
+    if (ordersWithTracking.length > 0) {
+      // Open a dedicated tab for tracking page navigation
+      const trackTab = await chrome.tabs.create({ active: false });
+      const trackTabId = trackTab.id!;
 
-      for (let i = 0; i < trackableOrders.length; i++) {
-        const order = trackableOrders[i];
-        try {
-          await chrome.tabs.update(tabId, {
-            url: `https://www.aliexpress.com/p/tracking/index.html?tradeOrderId=${order.aliOrderId}`,
-          });
-          await waitForTabLoad(tabId);
-          await chrome.scripting.executeScript({
-            target: { tabId },
-            files: ["dist/scraper.js"],
-          });
-          const tracking = await sendTrackingDetailMessage(tabId);
-          if (tracking.trackingNumber) order.trackingNumber = tracking.trackingNumber;
-          if (tracking.carrier) order.carrier = tracking.carrier;
-          if (tracking.estimatedDelivery) order.estimatedDelivery = tracking.estimatedDelivery;
-        } catch (err) {
-          console.warn(`[ali-sum] Failed to fetch tracking for order ${order.aliOrderId}:`, err);
-        }
+      for (let i = 0; i < ordersWithTracking.length; i++) {
+        const order = ordersWithTracking[i];
 
         broadcastProgress({
           status: "syncing",
           currentPage: page,
           totalPages: page,
           ordersFound: allOrders.length,
-          message: `Fetching tracking details (${i + 1}/${trackableOrders.length})...`,
+          message: `Fetching tracking ${i + 1}/${ordersWithTracking.length}...`,
         });
-      }
-    }
 
-    broadcastProgress({
-      status: "syncing",
-      currentPage: page,
-      totalPages: page,
-      ordersFound: allOrders.length,
-      message: `Uploading ${allOrders.length} orders to server...`,
-    });
+        try {
+          await chrome.tabs.update(trackTabId, { url: order.trackingPageUrl });
+          await waitForTabLoad(trackTabId);
+
+          const detail = await sendTrackingDetailMessage(trackTabId);
+          if ((detail as TrackingDetail & { captchaDetected?: boolean }).captchaDetected) {
+            captchaDetected = true;
+            break;
+          }
+          if (detail.trackingNumber) order.trackingNumber = detail.trackingNumber;
+          if (detail.carrier) order.carrier = detail.carrier;
+          if (detail.estimatedDelivery) order.estimatedDelivery = detail.estimatedDelivery;
+        } catch (err) {
+          console.warn(`[ali-sum] Failed to fetch tracking for ${order.aliOrderId}:`, err);
+        }
+      }
+
+      await chrome.tabs.remove(trackTabId);
+    }
 
     let created = 0;
     let skipped = 0;
     if (allOrders.length > 0) {
-      const result = await syncOrders(allOrders);
+      const result = await syncOrders(allOrders, (uploaded, total) => {
+        broadcastProgress({
+          status: "syncing",
+          currentPage: page,
+          totalPages: page,
+          ordersFound: allOrders.length,
+          message: `Uploading orders to server... (${uploaded}/${total})`,
+        });
+      });
       created = result.created;
       skipped = result.skipped;
     }
@@ -215,12 +233,17 @@ async function startSync() {
       orderCount: allOrders.length,
     });
 
+    const captchaSuffix = captchaDetected
+      ? " — CAPTCHA detected, some tracking info may be missing. Solve it in the browser and re-sync."
+      : "";
     const message =
       created === 0 && skipped > 0
-        ? `Already up to date (${skipped} order${skipped !== 1 ? "s" : ""} already synced)`
+        ? `Already up to date (${skipped} order${skipped !== 1 ? "s" : ""} already synced)${captchaSuffix}`
         : created > 0
-          ? `${created} new order${created !== 1 ? "s" : ""} synced`
-          : undefined;
+          ? `${created} new order${created !== 1 ? "s" : ""} synced${captchaSuffix}`
+          : captchaDetected
+            ? "CAPTCHA detected — solve it in the browser and re-sync for tracking info"
+            : undefined;
 
     broadcastProgress({
       status: "completed",

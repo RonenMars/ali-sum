@@ -17,6 +17,7 @@ export interface ScrapedOrder {
   trackingNumber?: string;
   carrier?: string;
   estimatedDelivery?: string;
+  trackingPageUrl?: string;
   items: ScrapedOrderItem[];
 }
 
@@ -27,6 +28,12 @@ export interface SyncProgress {
   ordersFound: number;
   error?: string;
   message?: string;
+}
+
+export interface TrackingDetail {
+  trackingNumber?: string;
+  carrier?: string;
+  estimatedDelivery?: string;
 }
 
 export interface SyncResult {

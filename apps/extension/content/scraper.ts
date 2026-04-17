@@ -13,6 +13,16 @@ import { ScrapedOrder, ScrapedOrderItem } from "../lib/types";
 // NOTE: AliExpress ships frequent UI changes. If scraping breaks, open DevTools
 // on aliexpress.com/p/order/index.html and re-verify the selectors below.
 
+function detectCaptcha(): boolean {
+  // AliExpress shows a modal with "slide to verify" when it detects bot-like traffic.
+  // Check for common CAPTCHA indicators.
+  const body = document.body.innerText || "";
+  if (/please\s+slide\s+to\s+verify/i.test(body)) return true;
+  if (/unusual\s+traffic/i.test(body)) return true;
+  if (document.querySelector("#baxia-dialog-content, .baxia-dialog, #nc_1_wrapper, .nc-container")) return true;
+  return false;
+}
+
 function parsePrice(text: string): number {
   // Strip everything except digits and the last decimal separator
   const cleaned = text.replace(/[^0-9.,]/g, "").replace(",", ".");
@@ -199,6 +209,11 @@ function scrapeOrdersFromPage(): ScrapedOrder[] {
       // --- Tracking (only present for shipped / awaiting-delivery orders) ---
       const tracking = scrapeTracking(orderEl);
 
+      // --- Tracking page URL (for detail-page scraping fallback) ---
+      const trackBtn = Array.from(orderEl.querySelectorAll<HTMLAnchorElement>("a.order-item-btn"))
+        .find((a) => /track\s*order/i.test(a.textContent || ""));
+      const trackingPageUrl = trackBtn?.href || undefined;
+
       // --- Total amount ---
       // .order-item-content-opt-price-total contains currency + amount as child spans
       const totalEls = orderEl.querySelectorAll<HTMLElement>(
@@ -222,6 +237,7 @@ function scrapeOrdersFromPage(): ScrapedOrder[] {
         // Shipping cost is only shown on the order detail page, not the list page
         shippingCost: 0,
         ...tracking,
+        trackingPageUrl,
         items,
       });
     } catch (err) {
@@ -302,6 +318,113 @@ function scrapeTrackingDetailPage(): {
   return { trackingNumber, carrier, estimatedDelivery };
 }
 
+function parsePopoverDeliveryDate(text: string): string | undefined {
+  // Format: "May 14, 2026" — already includes year
+  const match = text.match(/([A-Z][a-z]{2,8}\.?\s+\d{1,2},?\s*\d{4})/);
+  if (match) {
+    const d = new Date(match[1]);
+    if (!isNaN(d.getTime())) return d.toISOString();
+  }
+  // Fallback: no year, e.g. "May 14"
+  const noYear = text.match(/([A-Z][a-z]{2,8}\.?\s+\d{1,2})/);
+  if (noYear) {
+    const cleaned = noYear[1].replace(".", "");
+    const d = new Date(`${cleaned}, ${new Date().getFullYear()}`);
+    if (!isNaN(d.getTime())) return d.toISOString();
+  }
+  return undefined;
+}
+
+function scrapePopoverContent(): {
+  trackingNumber?: string;
+  estimatedDelivery?: string;
+} {
+  const popover = document.querySelector<HTMLElement>(".order-track-popover");
+  if (!popover) return {};
+
+  // Tracking number: <p class="tracking-number-title">Tracking number:&nbsp;<span>XXX</span></p>
+  const trackingEl = popover.querySelector<HTMLElement>(".tracking-number-title span");
+  const trackingNumber = trackingEl?.innerText.trim() || undefined;
+
+  // Estimated delivery: first <p> inside .order-track-popover-title
+  // Format: "Estimated delivery date:&nbsp;<span>May 14, 2026</span>"
+  const titleDiv = popover.querySelector<HTMLElement>(".order-track-popover-title");
+  let estimatedDelivery: string | undefined;
+  if (titleDiv) {
+    const firstP = titleDiv.querySelector<HTMLElement>("p:not(.tracking-number-title)");
+    const dateSpan = firstP?.querySelector<HTMLElement>("span");
+    const dateText = dateSpan?.innerText.trim() || firstP?.innerText.trim() || "";
+    if (dateText) {
+      estimatedDelivery = parsePopoverDeliveryDate(dateText);
+    }
+  }
+
+  return { trackingNumber, estimatedDelivery };
+}
+
+async function scrapeTrackingFromPopovers(): Promise<{
+  trackingMap: Record<string, { trackingNumber?: string; estimatedDelivery?: string }>;
+  captchaDetected: boolean;
+}> {
+  const trackingMap: Record<string, { trackingNumber?: string; estimatedDelivery?: string }> = {};
+  const orderEls = document.querySelectorAll<HTMLElement>(".order-item");
+
+  for (const orderEl of Array.from(orderEls)) {
+    // Check for CAPTCHA before each hover
+    if (detectCaptcha()) {
+      console.warn("[ali-sum] CAPTCHA detected, aborting popover scraping");
+      return { trackingMap, captchaDetected: true };
+    }
+
+    // Extract order ID
+    const headerInfo = orderEl.querySelector<HTMLElement>(".order-item-header-right-info");
+    const infoDivs = headerInfo
+      ? Array.from(headerInfo.querySelectorAll<HTMLElement>(":scope > div"))
+      : [];
+    const orderIdStr = infoDivs[infoDivs.length - 1]?.innerText || "";
+    const aliOrderId = orderIdStr
+      .replace(/Order\s+ID[:\s]*/i, "")
+      .replace(/Copy/gi, "")
+      .trim();
+    if (!aliOrderId) continue;
+
+    // Find "Track order" button
+    const trackBtn = Array.from(orderEl.querySelectorAll<HTMLAnchorElement>("a.order-item-btn"))
+      .find((a) => /track\s*order/i.test(a.textContent || ""));
+    if (!trackBtn) continue;
+
+    // Hover to trigger popover
+    trackBtn.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+    trackBtn.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+
+    // Wait for popover to render (it's lazy-loaded via React portal)
+    const deadline = Date.now() + 3000;
+    let popover: HTMLElement | null = null;
+    while (Date.now() < deadline) {
+      popover = document.querySelector<HTMLElement>(".order-track-popover");
+      if (popover) break;
+      await new Promise((r) => setTimeout(r, 200));
+    }
+
+    if (popover) {
+      const data = scrapePopoverContent();
+      if (data.trackingNumber || data.estimatedDelivery) {
+        trackingMap[aliOrderId] = data;
+      }
+    }
+
+    // Dismiss popover
+    trackBtn.dispatchEvent(new MouseEvent("mouseleave", { bubbles: true }));
+    trackBtn.dispatchEvent(new MouseEvent("mouseout", { bubbles: true }));
+
+    // Randomized pause (800–2000ms) to look less bot-like
+    const delay = 800 + Math.random() * 1200;
+    await new Promise((r) => setTimeout(r, delay));
+  }
+
+  return { trackingMap, captchaDetected: false };
+}
+
 // Listen for scrape requests from the service worker
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === "SCRAPE_ORDERS") {
@@ -321,18 +444,28 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true; // async response
   }
 
+  if (message.type === "SCRAPE_TRACKING_POPOVERS") {
+    scrapeTrackingFromPopovers().then(({ trackingMap, captchaDetected }) => {
+      sendResponse({ type: "SCRAPE_TRACKING_POPOVERS_RESULT", trackingMap, captchaDetected });
+    });
+    return true; // async response
+  }
+
   if (message.type === "SCRAPE_TRACKING_DETAIL") {
     // Tracking page is client-rendered — poll for elements to appear.
     const deadline = Date.now() + 10000;
     const poll = async () => {
       while (Date.now() < deadline) {
+        if (detectCaptcha()) {
+          return { ...scrapeTrackingDetailPage(), captchaDetected: true };
+        }
         const el = document.querySelector(
           '[class*="logistic-info-v2--mailNoValue"], [class*="logistic-info-v2--carrierTitle"]'
         );
         if (el) break;
         await new Promise((r) => setTimeout(r, 300));
       }
-      return scrapeTrackingDetailPage();
+      return { ...scrapeTrackingDetailPage(), captchaDetected: false };
     };
     poll().then((result) => {
       sendResponse({ type: "SCRAPE_TRACKING_DETAIL_RESULT", ...result });
