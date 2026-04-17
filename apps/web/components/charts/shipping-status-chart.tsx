@@ -13,15 +13,15 @@ interface ShippingStatusChartProps {
   data: { label: string; count: number }[];
 }
 
-const COLORS: Record<string, string> = {
-  "In Transit": "hsl(239, 84%, 67%)",
-  Delivered: "hsl(142, 71%, 45%)",
-  "Pending / Processing": "hsl(38, 92%, 50%)",
-  Other: "hsl(215, 14%, 60%)",
+const STATUS_COLORS: Record<string, string> = {
+  "In Transit": "oklch(0.55 0.19 260)",
+  "Delivered": "oklch(0.60 0.18 145)",
+  "Pending / Processing": "oklch(0.75 0.17 75)",
+  "Other": "oklch(0.65 0 0)",
 };
 
 function getColor(label: string): string {
-  return COLORS[label] ?? COLORS["Other"];
+  return STATUS_COLORS[label] ?? STATUS_COLORS["Other"];
 }
 
 export function ShippingStatusChart({ data }: ShippingStatusChartProps) {
@@ -44,9 +44,10 @@ export function ShippingStatusChart({ data }: ShippingStatusChartProps) {
           nameKey="label"
           cx="50%"
           cy="50%"
-          innerRadius={60}
-          outerRadius={100}
-          paddingAngle={2}
+          innerRadius={65}
+          outerRadius={105}
+          paddingAngle={3}
+          strokeWidth={0}
         >
           {filtered.map((entry) => (
             <Cell key={entry.label} fill={getColor(entry.label)} />
@@ -54,10 +55,11 @@ export function ShippingStatusChart({ data }: ShippingStatusChartProps) {
         </Pie>
         <Tooltip
           contentStyle={{
-            backgroundColor: "hsl(var(--popover))",
-            border: "1px solid hsl(var(--border))",
-            borderRadius: "6px",
-            color: "hsl(var(--popover-foreground))",
+            backgroundColor: "var(--color-popover)",
+            border: "1px solid var(--color-border)",
+            borderRadius: "8px",
+            color: "var(--color-popover-foreground)",
+            fontSize: "13px",
           }}
           formatter={(value, name) => [
             `${value} order${value !== 1 ? "s" : ""}`,
@@ -65,8 +67,12 @@ export function ShippingStatusChart({ data }: ShippingStatusChartProps) {
           ]}
         />
         <Legend
+          iconType="circle"
+          iconSize={8}
           formatter={(value: string) => (
-            <span className="text-sm text-foreground">{value}</span>
+            <span style={{ fontSize: "13px", color: "oklch(0.145 0 0)" }}>
+              {value}
+            </span>
           )}
         />
       </PieChart>

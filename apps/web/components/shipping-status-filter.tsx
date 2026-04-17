@@ -5,7 +5,7 @@ import { useCallback } from "react";
 import { SHIPPING_STATUS_FILTERS } from "@/lib/shipping-status";
 
 const inputClass =
-  "h-8 rounded-lg border border-border bg-background px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+  "h-8 rounded-lg border border-border bg-background px-2.5 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20";
 
 export function ShippingStatusFilter() {
   const router = useRouter();

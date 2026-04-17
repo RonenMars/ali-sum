@@ -163,7 +163,7 @@ export default async function OrdersPage({ searchParams }: PageProps) {
                     {page > 1 && (
                       <a
                         href={`/orders?${paginationParams(page - 1)}`}
-                        className="px-3 py-1.5 text-sm border rounded-md hover:bg-accent"
+                        className="inline-flex h-7 items-center rounded-lg border border-border bg-background px-2.5 text-[0.8rem] font-medium hover:bg-muted transition-colors"
                       >
                         Previous
                       </a>
@@ -171,7 +171,7 @@ export default async function OrdersPage({ searchParams }: PageProps) {
                     {page < totalPages && (
                       <a
                         href={`/orders?${paginationParams(page + 1)}`}
-                        className="px-3 py-1.5 text-sm border rounded-md hover:bg-accent"
+                        className="inline-flex h-7 items-center rounded-lg border border-border bg-background px-2.5 text-[0.8rem] font-medium hover:bg-muted transition-colors"
                       >
                         Next
                       </a>

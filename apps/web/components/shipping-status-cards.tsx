@@ -2,12 +2,15 @@
 
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useCallback } from "react";
+import { Truck, PackageCheck, Clock, Package } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface StatusCardData {
   label: string;
   count: number;
-  className: string;
+  icon: React.ElementType;
+  iconClass: string;
+  valueClass: string;
   filterValue: string;
 }
 
@@ -33,7 +36,6 @@ export function ShippingStatusCards({
     (filterValue: string) => {
       const params = new URLSearchParams(searchParams.toString());
       if (currentStatus === filterValue) {
-        // Toggle off — clear filter
         params.delete("status");
       } else {
         params.set("status", filterValue);
@@ -48,25 +50,33 @@ export function ShippingStatusCards({
     {
       label: "In Transit",
       count: inTransitCount,
-      className: "text-indigo-600",
+      icon: Truck,
+      iconClass: "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400",
+      valueClass: "text-blue-600 dark:text-blue-400",
       filterValue: "In Transit",
     },
     {
       label: "Delivered",
       count: deliveredCount,
-      className: "text-green-600",
+      icon: PackageCheck,
+      iconClass: "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400",
+      valueClass: "text-green-600 dark:text-green-400",
       filterValue: "Delivered",
     },
     {
       label: "Pending / Processing",
       count: pendingCount,
-      className: "text-amber-600",
+      icon: Clock,
+      iconClass: "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400",
+      valueClass: "text-amber-600 dark:text-amber-400",
       filterValue: "Processing",
     },
     {
       label: "Total Orders",
       count: totalCount,
-      className: "text-foreground",
+      icon: Package,
+      iconClass: "bg-muted text-muted-foreground",
+      valueClass: "text-foreground",
       filterValue: "",
     },
   ];
@@ -74,19 +84,29 @@ export function ShippingStatusCards({
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
       {cards.map((card) => {
+        const Icon = card.icon;
         const isActive =
           card.filterValue !== "" && currentStatus === card.filterValue;
         return (
           <Card
             key={card.label}
-            className={`cursor-pointer transition-colors hover:bg-accent/50 ${
-              isActive ? "ring-2 ring-primary" : ""
+            className={`cursor-pointer transition-all hover:shadow-sm hover:-translate-y-px ${
+              isActive ? "ring-2 ring-primary shadow-sm" : ""
             }`}
             onClick={() => handleClick(card.filterValue)}
           >
-            <CardContent className="pt-5 pb-4">
-              <p className="text-xs text-muted-foreground mb-1">{card.label}</p>
-              <p className={`text-2xl font-bold tabular-nums ${card.className}`}>
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <p className="text-xs font-medium text-muted-foreground leading-tight">
+                  {card.label}
+                </p>
+                <div
+                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${card.iconClass}`}
+                >
+                  <Icon className="size-3.5" />
+                </div>
+              </div>
+              <p className={`text-2xl font-bold tabular-nums ${card.valueClass}`}>
                 {card.count}
               </p>
             </CardContent>

@@ -8,8 +8,8 @@ const STORAGE_KEY = DATE_FILTER_STORAGE_KEY;
 const DEFAULT_PRESET = DEFAULT_DATE_PRESET;
 const PRESETS = DATE_PRESETS;
 
-const inputClass =
-  "h-8 rounded-lg border border-border bg-background px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+const dateInputClass =
+  "h-8 rounded-lg border border-border bg-background px-2.5 text-sm outline-none transition-colors placeholder:text-muted-foreground/60 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20";
 
 export function DateRangeFilter() {
   const router = useRouter();
@@ -32,10 +32,8 @@ export function DateRangeFilter() {
     [router, pathname, searchParams]
   );
 
-  // On mount: if no URL params, load from storage or apply default
   useEffect(() => {
     if (from || to) {
-      // URL already has params — sync active preset label and save to storage
       const matched = PRESETS.find((p) => { const r = p.getRange(); return r.from === from && r.to === to; });
       setActivePreset(matched?.label ?? null);
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ from, to }));
@@ -48,14 +46,12 @@ export function DateRangeFilter() {
         if (f || t) { applyRange(f, t); return; }
       }
     } catch {}
-    // First visit — apply default
     const preset = PRESETS.find((p) => p.label === DEFAULT_PRESET)!;
     const r = preset.getRange();
     setActivePreset(DEFAULT_PRESET);
     applyRange(r.from, r.to);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Sync active preset label when URL params change after mount
   useEffect(() => {
     if (!from && !to) return;
     const matched = PRESETS.find((p) => { const r = p.getRange(); return r.from === from && r.to === to; });
@@ -99,10 +95,10 @@ export function DateRangeFilter() {
             key={p.label}
             onClick={() => handlePreset(p)}
             className={[
-              "px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors",
+              "px-2.5 py-1 rounded-full text-xs font-medium transition-all",
               activePreset === p.label
-                ? "bg-primary text-primary-foreground"
-                : "border border-border text-muted-foreground hover:bg-muted hover:text-foreground",
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "border border-border text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-muted/50",
             ].join(" ")}
           >
             {p.label}
@@ -113,27 +109,27 @@ export function DateRangeFilter() {
       {/* Date inputs */}
       <div className="flex items-center gap-2 flex-wrap justify-end">
         <div className="flex items-center gap-1.5">
-          <span className="text-sm text-muted-foreground">From</span>
+          <span className="text-xs text-muted-foreground">From</span>
           <input
             type="date"
             value={from}
             onChange={(e) => handleFromChange(e.target.value)}
-            className={inputClass}
+            className={dateInputClass}
           />
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="text-sm text-muted-foreground">To</span>
+          <span className="text-xs text-muted-foreground">To</span>
           <input
             type="date"
             value={to}
             onChange={(e) => handleToChange(e.target.value)}
-            className={inputClass}
+            className={dateInputClass}
           />
         </div>
         {activePreset !== DEFAULT_PRESET && (
           <button
             onClick={reset}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            className="text-xs text-muted-foreground hover:text-primary transition-colors"
           >
             Reset
           </button>

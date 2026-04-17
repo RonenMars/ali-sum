@@ -10,6 +10,9 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
+const CHART_BLUE = "oklch(0.55 0.19 260)";
+const MUTED_TEXT = "oklch(0.556 0 0)";
+
 interface DeliveryTimelineChartProps {
   data: { week: string; count: number }[];
 }
@@ -26,24 +29,28 @@ export function DeliveryTimelineChart({ data }: DeliveryTimelineChartProps) {
   return (
     <ResponsiveContainer width="100%" height={300}>
       <BarChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+        <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.922 0 0)" vertical={false} />
         <XAxis
           dataKey="week"
-          className="text-xs"
-          tick={{ fill: "hsl(var(--muted-foreground))" }}
+          tick={{ fill: MUTED_TEXT, fontSize: 12 }}
+          axisLine={false}
+          tickLine={false}
         />
         <YAxis
-          className="text-xs"
-          tick={{ fill: "hsl(var(--muted-foreground))" }}
+          tick={{ fill: MUTED_TEXT, fontSize: 12 }}
+          axisLine={false}
+          tickLine={false}
           allowDecimals={false}
         />
         <Tooltip
           contentStyle={{
-            backgroundColor: "hsl(var(--popover))",
-            border: "1px solid hsl(var(--border))",
-            borderRadius: "6px",
-            color: "hsl(var(--popover-foreground))",
+            backgroundColor: "var(--color-popover)",
+            border: "1px solid var(--color-border)",
+            borderRadius: "8px",
+            color: "var(--color-popover-foreground)",
+            fontSize: "13px",
           }}
+          cursor={{ fill: "oklch(0.97 0 0)" }}
           formatter={(value) => [
             `${value} package${value !== 1 ? "s" : ""}`,
             "Expected",
@@ -51,8 +58,8 @@ export function DeliveryTimelineChart({ data }: DeliveryTimelineChartProps) {
         />
         <Bar
           dataKey="count"
-          fill="hsl(239, 84%, 67%)"
-          radius={[4, 4, 0, 0]}
+          fill={CHART_BLUE}
+          radius={[6, 6, 0, 0]}
         />
       </BarChart>
     </ResponsiveContainer>

@@ -35,19 +35,28 @@ export default async function SettingsPage() {
         <CardHeader>
           <CardTitle className="text-base">Account</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Email</span>
-            <span>{user?.email}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Name</span>
-            <span>{user?.name || "—"}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Member since</span>
-            <span>{user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : "—"}</span>
-          </div>
+        <CardContent>
+          <dl className="space-y-3 text-sm">
+            {[
+              { label: "Email", value: user?.email },
+              { label: "Name", value: user?.name || "—" },
+              {
+                label: "Member since",
+                value: user?.createdAt
+                  ? new Date(user.createdAt).toLocaleDateString(undefined, {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })
+                  : "—",
+              },
+            ].map(({ label, value }) => (
+              <div key={label} className="flex items-center justify-between py-0.5 border-b border-border last:border-0">
+                <dt className="text-muted-foreground">{label}</dt>
+                <dd className="font-medium">{value}</dd>
+              </div>
+            ))}
+          </dl>
         </CardContent>
       </Card>
 
