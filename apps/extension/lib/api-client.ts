@@ -22,30 +22,53 @@ export async function whoami(): Promise<{ id: string; email: string } | null> {
   return res.json();
 }
 
-export async function syncOrders(orders: ScrapedOrder[]): Promise<SyncResult> {
+const BATCH_SIZE = 50;
+
+export async function syncOrders(
+  orders: ScrapedOrder[],
+  onProgress?: (uploaded: number, total: number) => void,
+): Promise<SyncResult> {
   const [apiBase, token] = await Promise.all([getApiBase(), getToken()]);
 
   if (!token) {
     throw new Error("Not authenticated. Please connect your account first.");
   }
 
-  const res = await fetch(`${apiBase}/api/orders/sync`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ orders }),
-  });
+  let totalCreated = 0;
+  let totalSkipped = 0;
+  let syncLogId = "";
 
-  if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    // If all orders were already synced (skipped with no new ones), treat as success
-    if (body && body.created === 0 && typeof body.skipped === "number" && body.skipped > 0) {
-      return body as SyncResult;
+  for (let i = 0; i < orders.length; i += BATCH_SIZE) {
+    const batch = orders.slice(i, i + BATCH_SIZE);
+    onProgress?.(i, orders.length);
+
+    const res = await fetch(`${apiBase}/api/orders/sync`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ orders: batch }),
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      if (body && body.created === 0 && typeof body.skipped === "number" && body.skipped > 0) {
+        totalSkipped += body.skipped;
+        syncLogId = body.syncLogId || syncLogId;
+        continue;
+      }
+      throw new Error(
+        `Sync failed on batch ${Math.floor(i / BATCH_SIZE) + 1}: ${body ? JSON.stringify(body) : res.statusText}`,
+      );
     }
-    throw new Error(`Sync failed: ${body ? JSON.stringify(body) : res.statusText}`);
+
+    const result: SyncResult = await res.json();
+    totalCreated += result.created;
+    totalSkipped += result.skipped;
+    syncLogId = result.syncLogId;
   }
 
-  return res.json();
+  onProgress?.(orders.length, orders.length);
+  return { created: totalCreated, skipped: totalSkipped, syncLogId };
 }
