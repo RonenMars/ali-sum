@@ -1,19 +1,14 @@
 import { Suspense } from "react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { formatAmount } from "@/lib/format";
-import { getShippingStatus, SHIPPING_STATUS_FILTERS } from "@/lib/shipping-status";
+import { getShippingStatus } from "@/lib/shipping-status";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import { ShippingStatusFilter } from "@/components/shipping-status-filter";
+import { ShippingStatusCards } from "@/components/shipping-status-cards";
+import { PackageTable } from "@/components/package-table";
+import { ShippingStatusChart } from "@/components/charts/shipping-status-chart";
+import { DeliveryTimelineChart } from "@/components/charts/delivery-timeline-chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 
 interface PageProps {
   searchParams: Promise<{
@@ -45,6 +40,15 @@ const STATUS_KEYWORD_MAP: Record<string, string[]> = {
   "Cancelled": ["cancel"],
 };
 
+function getWeekLabel(date: Date): string {
+  // Get Monday of the week
+  const day = date.getDay();
+  const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(date);
+  monday.setDate(diff);
+  return monday.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
 export default async function ShippingPage({ searchParams }: PageProps) {
   const session = await auth();
   const userId = session!.user!.id!;
@@ -73,7 +77,12 @@ export default async function ShippingPage({ searchParams }: PageProps) {
     ...(statusConditions && { OR: statusConditions }),
   };
 
-  const [orders, total] = await Promise.all([
+  const dateWhere = {
+    userId,
+    ...(Object.keys(dateFilter).length && { orderDate: dateFilter }),
+  };
+
+  const [orders, total, allOrdersInRange] = await Promise.all([
     prisma.order.findMany({
       where,
       include: { items: true },
@@ -82,19 +91,49 @@ export default async function ShippingPage({ searchParams }: PageProps) {
       take: limit,
     }),
     prisma.order.count({ where }),
+    prisma.order.findMany({
+      where: dateWhere,
+      select: { status: true, trackingNumber: true, estimatedDelivery: true },
+    }),
   ]);
 
-  // Stats: count by normalized status group
-  const allOrders = await prisma.order.findMany({
-    where: { userId },
-    select: { status: true },
-  });
-
+  // Status counts from all orders in date range (ignoring status filter)
   const statusCounts: Record<string, number> = {};
-  for (const o of allOrders) {
+  for (const o of allOrdersInRange) {
     const info = getShippingStatus(o.status);
     statusCounts[info.label] = (statusCounts[info.label] ?? 0) + 1;
   }
+
+  const IN_TRANSIT_LABELS = ["Shipped", "In Transit", "Out for Delivery"];
+  const inTransitCount = IN_TRANSIT_LABELS.reduce((sum, l) => sum + (statusCounts[l] ?? 0), 0);
+  const deliveredCount = statusCounts["Delivered"] ?? 0;
+  const pendingCount = (statusCounts["Payment Pending"] ?? 0) + (statusCounts["Processing"] ?? 0) + (statusCounts["Payment Accepted"] ?? 0);
+  const otherCount = allOrdersInRange.length - inTransitCount - deliveredCount - pendingCount;
+
+  // Chart data: status distribution
+  const statusChartData = [
+    { label: "In Transit", count: inTransitCount },
+    { label: "Delivered", count: deliveredCount },
+    { label: "Pending / Processing", count: pendingCount },
+    ...(otherCount > 0 ? [{ label: "Other", count: otherCount }] : []),
+  ];
+
+  // Chart data: delivery timeline (group by week)
+  const weekCounts = new Map<string, number>();
+  for (const o of allOrdersInRange) {
+    if (!o.estimatedDelivery) continue;
+    const d = new Date(o.estimatedDelivery);
+    const weekKey = getWeekLabel(d);
+    weekCounts.set(weekKey, (weekCounts.get(weekKey) ?? 0) + 1);
+  }
+  // Sort by actual date — re-derive Monday for sorting
+  const deliveryTimeline = Array.from(weekCounts.entries())
+    .map(([week, count]) => ({ week, count }))
+    .sort((a, b) => {
+      // Parse "Mon DD" back to a date for sorting
+      const parse = (label: string) => new Date(`${label}, ${new Date().getFullYear()}`).getTime();
+      return parse(a.week) - parse(b.week);
+    });
 
   const totalPages = Math.ceil(total / limit);
 
@@ -106,11 +145,6 @@ export default async function ShippingPage({ searchParams }: PageProps) {
     sp.set("page", String(p));
     return sp.toString();
   };
-
-  const IN_TRANSIT_LABELS = ["Shipped", "In Transit", "Out for Delivery"];
-  const inTransitCount = IN_TRANSIT_LABELS.reduce((sum, l) => sum + (statusCounts[l] ?? 0), 0);
-  const deliveredCount = statusCounts["Delivered"] ?? 0;
-  const pendingCount = (statusCounts["Payment Pending"] ?? 0) + (statusCounts["Processing"] ?? 0) + (statusCounts["Payment Accepted"] ?? 0);
 
   return (
     <div className="space-y-8">
@@ -127,15 +161,38 @@ export default async function ShippingPage({ searchParams }: PageProps) {
         </Suspense>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <SummaryCard label="In Transit" count={inTransitCount} className="text-indigo-600" />
-        <SummaryCard label="Delivered" count={deliveredCount} className="text-green-600" />
-        <SummaryCard label="Pending / Processing" count={pendingCount} className="text-amber-600" />
-        <SummaryCard label="Total Orders" count={allOrders.length} className="text-foreground" />
+      {/* Clickable summary cards */}
+      <Suspense>
+        <ShippingStatusCards
+          inTransitCount={inTransitCount}
+          deliveredCount={deliveredCount}
+          pendingCount={pendingCount}
+          totalCount={allOrdersInRange.length}
+        />
+      </Suspense>
+
+      {/* Charts */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Status Distribution</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ShippingStatusChart data={statusChartData} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Delivery Timeline</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DeliveryTimelineChart data={deliveryTimeline} />
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Filters + table */}
+      {/* Filters + package table */}
       <Card>
         <CardHeader className="flex-row items-center justify-between gap-4 flex-wrap">
           <CardTitle className="text-base">
@@ -148,127 +205,35 @@ export default async function ShippingPage({ searchParams }: PageProps) {
           </Suspense>
         </CardHeader>
         <CardContent>
-          {orders.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-8 text-center">
-              No orders match the selected filters.
-            </p>
-          ) : (
-            <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Order Date</TableHead>
-                    <TableHead>Order ID</TableHead>
-                    <TableHead>Seller</TableHead>
-                    <TableHead>Items</TableHead>
-                    <TableHead>Shipping Status</TableHead>
-                    <TableHead>Tracking Number</TableHead>
-                    <TableHead>Carrier</TableHead>
-                    <TableHead>Est. Delivery</TableHead>
-                    <TableHead className="text-right">Total</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {orders.map((order) => {
-                    const statusInfo = getShippingStatus(order.status);
-                    return (
-                      <TableRow key={order.id}>
-                        <TableCell className="whitespace-nowrap">
-                          {new Date(order.orderDate).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell className="font-mono text-xs">
-                          <a
-                            href={`https://www.aliexpress.com/p/order/detail.html?orderId=${order.aliOrderId}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="hover:underline text-blue-600"
-                          >
-                            {order.aliOrderId}
-                          </a>
-                        </TableCell>
-                        <TableCell className="max-w-[120px] truncate">
-                          {order.sellerName || "—"}
-                        </TableCell>
-                        <TableCell>
-                          <span title={order.items.map((i) => i.title).join(", ")}>
-                            {order.items.length}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <span
-                            className={`inline-flex h-5 items-center rounded-full px-2 text-xs font-medium whitespace-nowrap ${statusInfo.className}`}
-                          >
-                            {statusInfo.label}
-                          </span>
-                        </TableCell>
-                        <TableCell className="font-mono text-xs">
-                          {order.trackingNumber || "—"}
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {order.carrier || "—"}
-                        </TableCell>
-                        <TableCell className="text-xs whitespace-nowrap">
-                          {order.estimatedDelivery
-                            ? new Date(order.estimatedDelivery).toLocaleDateString()
-                            : "—"}
-                        </TableCell>
-                        <TableCell className="text-right font-medium whitespace-nowrap">
-                          {formatAmount(order.totalAmount, order.currency)}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+          <PackageTable orders={orders} />
 
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                  <p className="text-sm text-muted-foreground">
-                    Page {page} of {totalPages}
-                  </p>
-                  <div className="flex gap-2">
-                    {page > 1 && (
-                      <a
-                        href={`/shipping?${paginationParams(page - 1)}`}
-                        className="px-3 py-1.5 text-sm border rounded-md hover:bg-accent"
-                      >
-                        Previous
-                      </a>
-                    )}
-                    {page < totalPages && (
-                      <a
-                        href={`/shipping?${paginationParams(page + 1)}`}
-                        className="px-3 py-1.5 text-sm border rounded-md hover:bg-accent"
-                      >
-                        Next
-                      </a>
-                    )}
-                  </div>
-                </div>
-              )}
-            </>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4 pt-4 border-t">
+              <p className="text-sm text-muted-foreground">
+                Page {page} of {totalPages}
+              </p>
+              <div className="flex gap-2">
+                {page > 1 && (
+                  <a
+                    href={`/shipping?${paginationParams(page - 1)}`}
+                    className="px-3 py-1.5 text-sm border rounded-md hover:bg-accent"
+                  >
+                    Previous
+                  </a>
+                )}
+                {page < totalPages && (
+                  <a
+                    href={`/shipping?${paginationParams(page + 1)}`}
+                    className="px-3 py-1.5 text-sm border rounded-md hover:bg-accent"
+                  >
+                    Next
+                  </a>
+                )}
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
     </div>
-  );
-}
-
-function SummaryCard({
-  label,
-  count,
-  className,
-}: {
-  label: string;
-  count: number;
-  className?: string;
-}) {
-  return (
-    <Card>
-      <CardContent className="pt-5 pb-4">
-        <p className="text-xs text-muted-foreground mb-1">{label}</p>
-        <p className={`text-2xl font-bold tabular-nums ${className}`}>{count}</p>
-      </CardContent>
-    </Card>
   );
 }

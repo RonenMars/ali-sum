@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { SummaryCards } from "@/components/charts/summary-cards";
 import { SpendingChart } from "@/components/charts/spending-chart";
 import { SellersChart } from "@/components/charts/sellers-chart";
+import { ShippingStatusChart } from "@/components/charts/shipping-status-chart";
+import { getShippingStatus } from "@/lib/shipping-status";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatAmount } from "@/lib/format";
@@ -100,6 +102,36 @@ async function getTopSellers(userId: string, fromDate?: Date, toDate?: Date) {
   }));
 }
 
+async function getShippingStatusCounts(userId: string, fromDate?: Date, toDate?: Date) {
+  const dateFilter = {
+    ...(fromDate && { gte: fromDate }),
+    ...(toDate && { lt: toDate }),
+  };
+  const where = { userId, ...(Object.keys(dateFilter).length && { orderDate: dateFilter }) };
+
+  const orders = await prisma.order.findMany({
+    where,
+    select: { status: true },
+  });
+
+  const IN_TRANSIT_LABELS = ["Shipped", "In Transit", "Out for Delivery"];
+  let inTransit = 0, delivered = 0, pending = 0;
+  for (const o of orders) {
+    const label = getShippingStatus(o.status).label;
+    if (IN_TRANSIT_LABELS.includes(label)) inTransit++;
+    else if (label === "Delivered") delivered++;
+    else if (["Payment Pending", "Processing", "Payment Accepted"].includes(label)) pending++;
+  }
+  const other = orders.length - inTransit - delivered - pending;
+
+  return [
+    { label: "In Transit", count: inTransit },
+    { label: "Delivered", count: delivered },
+    { label: "Pending / Processing", count: pending },
+    ...(other > 0 ? [{ label: "Other", count: other }] : []),
+  ];
+}
+
 async function getRecentOrders(userId: string, fromDate?: Date, toDate?: Date, limit = 5) {
   const dateFilter = {
     ...(fromDate && { gte: fromDate }),
@@ -133,10 +165,11 @@ export default async function DashboardPage({
   const { fromDate, toDate } = parseDateRange(effectiveFrom, effectiveTo);
   const recentLimit = Math.max(5, parseInt(recentLimitParam || "5"));
 
-  const [summary, spending, sellers, recentOrders, primaryOrder] = await Promise.all([
+  const [summary, spending, sellers, shippingStatus, recentOrders, primaryOrder] = await Promise.all([
     getSummary(userId, fromDate, toDate),
     getSpendingSeries(userId, fromDate, toDate),
     getTopSellers(userId, fromDate, toDate),
+    getShippingStatusCounts(userId, fromDate, toDate),
     getRecentOrders(userId, fromDate, toDate, recentLimit),
     prisma.order.findFirst({ where: { userId }, select: { currency: true }, orderBy: { orderDate: "desc" } }),
   ]);
@@ -183,6 +216,15 @@ export default async function DashboardPage({
           </CardHeader>
           <CardContent>
             <SellersChart data={sellers} currency={primaryCurrency} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Shipping Status</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ShippingStatusChart data={shippingStatus} />
           </CardContent>
         </Card>
       </div>
