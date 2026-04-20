@@ -8,6 +8,7 @@ import { ShippingStatusCards } from "@/components/shipping-status-cards";
 import { PackageTable } from "@/components/package-table";
 import { ShippingStatusChart } from "@/components/charts/shipping-status-chart";
 import { DeliveryTimelineChart } from "@/components/charts/delivery-timeline-chart";
+import { ArrivalTimeline } from "@/components/arrival-timeline";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface PageProps {
@@ -82,7 +83,7 @@ export default async function ShippingPage({ searchParams }: PageProps) {
     ...(Object.keys(dateFilter).length && { orderDate: dateFilter }),
   };
 
-  const [orders, total, allOrdersInRange] = await Promise.all([
+  const [orders, total, allOrdersInRange, timelineOrders] = await Promise.all([
     prisma.order.findMany({
       where,
       include: { items: true },
@@ -94,6 +95,18 @@ export default async function ShippingPage({ searchParams }: PageProps) {
     prisma.order.findMany({
       where: dateWhere,
       select: { status: true, trackingNumber: true, estimatedDelivery: true },
+    }),
+    // Orders with estimated delivery for the arrival timeline
+    prisma.order.findMany({
+      where: {
+        ...dateWhere,
+        estimatedDelivery: { not: null },
+      },
+      include: {
+        items: { select: { id: true, title: true, imageUrl: true } },
+      },
+      orderBy: { estimatedDelivery: "asc" },
+      take: 20,
     }),
   ]);
 
@@ -191,6 +204,16 @@ export default async function ShippingPage({ searchParams }: PageProps) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Arrival timeline */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Estimated Arrivals</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ArrivalTimeline orders={timelineOrders} />
+        </CardContent>
+      </Card>
 
       {/* Filters + package table */}
       <Card>

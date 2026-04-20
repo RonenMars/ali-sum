@@ -119,10 +119,30 @@ export default async function OrdersPage({ searchParams }: PageProps) {
                           </a>
                         </TableCell>
                         <TableCell>{order.sellerName || "—"}</TableCell>
-                        <TableCell>
-                          <span title={order.items.map((i) => i.title).join(", ")}>
-                            {order.items.length} item{order.items.length !== 1 ? "s" : ""}
-                          </span>
+                        <TableCell className="max-w-[280px]">
+                          {order.items.length > 0 ? (
+                            <div className="flex items-center gap-2">
+                              {order.items[0].imageUrl && (
+                                <img
+                                  src={order.items[0].imageUrl}
+                                  alt=""
+                                  className="h-8 w-8 rounded object-cover shrink-0"
+                                />
+                              )}
+                              <div className="min-w-0">
+                                <p className="text-xs truncate" title={order.items[0].title}>
+                                  {order.items[0].title}
+                                </p>
+                                {order.items.length > 1 && (
+                                  <p className="text-[10px] text-muted-foreground">
+                                    +{order.items.length - 1} more
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
                         </TableCell>
                         <TableCell>
                           <span

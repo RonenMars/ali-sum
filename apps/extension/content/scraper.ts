@@ -47,13 +47,61 @@ function parseOrderDate(text: string): string {
   return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
 }
 
+function cleanImageUrl(url: string): string {
+  // Normalize AliExpress CDN image URLs to a consistent thumbnail size
+  // and strip query parameters for cleaner storage.
+  try {
+    const u = new URL(url);
+    u.search = "";
+    // Normalize to 640x640 for consistent quality
+    return u.toString().replace(/_\d+x\d+\.\w+$/, "_640x640.jpg");
+  } catch {
+    return url;
+  }
+}
+
 function scrapeImageUrl(el: HTMLElement): string {
-  // Image is often set as background-image on a div
-  const style = el.getAttribute("style") || "";
-  const bgMatch = style.match(/url\(['"]?(https?[^'")\s]+)['"]?\)/);
-  if (bgMatch) return bgMatch[1];
+  // Strategy 1: HTML img tags with lazy-loading support
+  // AliExpress uses various lazy-load attributes depending on the component.
   const img = el.querySelector<HTMLImageElement>("img");
-  return img?.src || "";
+  if (img) {
+    const lazySrc =
+      img.getAttribute("src") ||
+      img.getAttribute("data-src") ||
+      img.getAttribute("data-lazyload-src") ||
+      img.getAttribute("data-lazy-src") ||
+      img.getAttribute("data-original") ||
+      img.getAttribute("data-origin-src");
+    if (lazySrc && /alicdn\.com/i.test(lazySrc)) {
+      return cleanImageUrl(lazySrc);
+    }
+    // Fallback: any img src even if not alicdn
+    if (lazySrc) return lazySrc;
+  }
+
+  // Strategy 2: CSS background-image on the element or its children
+  const targets = [el, ...Array.from(el.querySelectorAll<HTMLElement>("*"))];
+  for (const target of targets) {
+    const style = target.getAttribute("style") || "";
+    const bgMatch = style.match(/url\(['"]?(https?[^'")\s]+)['"]?\)/);
+    if (bgMatch) {
+      const url = bgMatch[1];
+      if (/alicdn\.com/i.test(url)) return cleanImageUrl(url);
+      return url;
+    }
+    // Also check computed background-image
+    const computed = window.getComputedStyle(target).backgroundImage;
+    if (computed && computed !== "none") {
+      const match = computed.match(/url\(['"]?(https?[^'")\s]+)['"]?\)/);
+      if (match) {
+        const url = match[1];
+        if (/alicdn\.com/i.test(url)) return cleanImageUrl(url);
+        return url;
+      }
+    }
+  }
+
+  return "";
 }
 
 function scrapeItems(orderEl: HTMLElement): ScrapedOrderItem[] {

@@ -268,7 +268,31 @@ export default async function DashboardPage({
                         </a>
                       </td>
                       <td className="py-2">{order.sellerName || "—"}</td>
-                      <td className="py-2">{order.items.length}</td>
+                      <td className="py-2 max-w-[220px]">
+                        {order.items.length > 0 ? (
+                          <div className="flex items-center gap-2">
+                            {order.items[0].imageUrl && (
+                              <img
+                                src={order.items[0].imageUrl}
+                                alt=""
+                                className="h-7 w-7 rounded object-cover shrink-0"
+                              />
+                            )}
+                            <div className="min-w-0">
+                              <p className="text-xs truncate" title={order.items[0].title}>
+                                {order.items[0].title}
+                              </p>
+                              {order.items.length > 1 && (
+                                <p className="text-[10px] text-muted-foreground">
+                                  +{order.items.length - 1} more
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
                       <td className="py-2 text-right font-medium">
                         {formatAmount(order.totalAmount, order.currency)}
                       </td>
