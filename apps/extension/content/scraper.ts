@@ -13,6 +13,30 @@ import { ScrapedOrder, ScrapedOrderItem } from "../lib/types";
 // NOTE: AliExpress ships frequent UI changes. If scraping breaks, open DevTools
 // on aliexpress.com/p/order/index.html and re-verify the selectors below.
 
+// --- Human-like behavior helpers ---
+
+function randomBetween(min: number, max: number): number {
+  return min + Math.random() * (max - min);
+}
+
+function humanDelay(minMs: number, maxMs: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, randomBetween(minMs, maxMs)));
+}
+
+function randomScroll(): void {
+  const maxY = document.documentElement.scrollHeight - window.innerHeight;
+  if (maxY <= 0) return;
+  const currentY = window.scrollY;
+  // Scroll a small random offset from current position (±100-400px)
+  const offset = randomBetween(-400, 400);
+  const targetY = Math.max(0, Math.min(maxY, currentY + offset));
+  window.scrollTo({ top: targetY, behavior: "smooth" });
+}
+
+function scrollToElement(el: HTMLElement): void {
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
 function detectCaptcha(): boolean {
   // AliExpress shows a modal with "slide to verify" when it detects bot-like traffic.
   // Check for common CAPTCHA indicators.
@@ -321,6 +345,10 @@ async function clickLoadMore(): Promise<boolean> {
   const btn = findLoadMoreButton();
   if (!btn) return false;
 
+  // Scroll to the button first, pause, then click — like a real user
+  scrollToElement(btn);
+  await humanDelay(1500, 4000);
+
   const beforeCount = document.querySelectorAll(".order-item").length;
   btn.click();
 
@@ -417,7 +445,10 @@ async function scrapeTrackingFromPopovers(): Promise<{
   const trackingMap: Record<string, { trackingNumber?: string; estimatedDelivery?: string }> = {};
   const orderEls = document.querySelectorAll<HTMLElement>(".order-item");
 
-  for (const orderEl of Array.from(orderEls)) {
+  const orderArr = Array.from(orderEls);
+  for (let i = 0; i < orderArr.length; i++) {
+    const orderEl = orderArr[i];
+
     // Check for CAPTCHA before each hover
     if (detectCaptcha()) {
       console.warn("[ali-sum] CAPTCHA detected, aborting popover scraping");
@@ -441,6 +472,16 @@ async function scrapeTrackingFromPopovers(): Promise<{
       .find((a) => /track\s*order/i.test(a.textContent || ""));
     if (!trackBtn) continue;
 
+    // Occasional idle pause — ~20% chance to "take a break" (4-9s)
+    if (Math.random() < 0.2) {
+      randomScroll();
+      await humanDelay(4000, 9000);
+    }
+
+    // Scroll the order into view before hovering
+    scrollToElement(trackBtn);
+    await humanDelay(1000, 2500);
+
     // Hover to trigger popover
     trackBtn.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
     trackBtn.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
@@ -455,6 +496,8 @@ async function scrapeTrackingFromPopovers(): Promise<{
     }
 
     if (popover) {
+      // Brief pause to "read" the popover content
+      await humanDelay(500, 1500);
       const data = scrapePopoverContent();
       if (data.trackingNumber || data.estimatedDelivery) {
         trackingMap[aliOrderId] = data;
@@ -465,9 +508,8 @@ async function scrapeTrackingFromPopovers(): Promise<{
     trackBtn.dispatchEvent(new MouseEvent("mouseleave", { bubbles: true }));
     trackBtn.dispatchEvent(new MouseEvent("mouseout", { bubbles: true }));
 
-    // Randomized pause (800–2000ms) to look less bot-like
-    const delay = 800 + Math.random() * 1200;
-    await new Promise((r) => setTimeout(r, delay));
+    // Randomized pause between hovers (2.5–6s)
+    await humanDelay(2500, 6000);
   }
 
   return { trackingMap, captchaDetected: false };

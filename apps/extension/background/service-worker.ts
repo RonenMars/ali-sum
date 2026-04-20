@@ -126,6 +126,14 @@ async function scrapeTab(tabId: number): Promise<{ orders: ScrapedOrder[]; hasNe
 
 const MAX_PAGES = 200;
 
+function randomBetween(min: number, max: number): number {
+  return min + Math.random() * (max - min);
+}
+
+function humanDelay(minMs: number, maxMs: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, randomBetween(minMs, maxMs)));
+}
+
 async function startSync() {
   try {
     broadcastProgress({ status: "syncing", currentPage: 1, totalPages: null, ordersFound: 0 });
@@ -152,6 +160,9 @@ async function startSync() {
       hasMore = result.hasNextPage;
 
       if (!hasMore) break;
+
+      // Random pause between pages (3–8s) to mimic reading/scrolling
+      await humanDelay(3000, 8000);
 
       // Click "View orders" / "Load more" and wait for new items to render.
       const loadMore = await sendLoadMoreMessage(tabId);
@@ -182,6 +193,9 @@ async function startSync() {
       const trackTabId = trackTab.id!;
 
       for (let i = 0; i < ordersWithTracking.length; i++) {
+        // Random pause between tracking page navigations (4–10s)
+        if (i > 0) await humanDelay(4000, 10000);
+
         const order = ordersWithTracking[i];
 
         broadcastProgress({
