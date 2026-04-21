@@ -17,6 +17,7 @@ interface OrderItem {
   title: string;
   price: number;
   quantity: number;
+  imageUrl: string | null;
 }
 
 interface Order {
@@ -161,35 +162,59 @@ export function PackageTable({ orders }: { orders: Order[] }) {
               </TableRow>
               {isOpen &&
                 pkg.orders.map((order) => (
-                  <TableRow key={order.id} className="bg-muted/30">
-                    <TableCell></TableCell>
-                    <TableCell className="font-mono text-xs" colSpan={2}>
-                      <a
-                        href={`https://www.aliexpress.com/p/order/detail.html?orderId=${order.aliOrderId}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="hover:underline text-blue-600"
-                      >
-                        {order.aliOrderId}
-                      </a>
-                      <span className="ml-2 text-muted-foreground">
-                        {new Date(order.orderDate).toLocaleDateString()}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground max-w-[120px] truncate">
-                      {order.sellerName || "—"}
-                    </TableCell>
-                    <TableCell></TableCell>
-                    <TableCell>
-                      <span title={order.items.map((i) => i.title).join(", ")}>
-                        {order.items.length}
-                      </span>
-                    </TableCell>
-                    <TableCell></TableCell>
-                    <TableCell className="text-right text-xs whitespace-nowrap">
-                      {formatAmount(order.totalAmount, order.currency)}
-                    </TableCell>
-                  </TableRow>
+                  <>
+                    <TableRow key={order.id} className="bg-muted/30">
+                      <TableCell></TableCell>
+                      <TableCell className="font-mono text-xs" colSpan={2}>
+                        <a
+                          href={`https://www.aliexpress.com/p/order/detail.html?orderId=${order.aliOrderId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:underline text-blue-600"
+                        >
+                          {order.aliOrderId}
+                        </a>
+                        <span className="ml-2 text-muted-foreground">
+                          {new Date(order.orderDate).toLocaleDateString()}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground max-w-[120px] truncate">
+                        {order.sellerName || "—"}
+                      </TableCell>
+                      <TableCell></TableCell>
+                      <TableCell>{order.items.length}</TableCell>
+                      <TableCell></TableCell>
+                      <TableCell className="text-right text-xs whitespace-nowrap">
+                        {formatAmount(order.totalAmount, order.currency)}
+                      </TableCell>
+                    </TableRow>
+                    {order.items.map((item) => (
+                      <TableRow key={item.id} className="bg-muted/10">
+                        <TableCell colSpan={2}></TableCell>
+                        <TableCell colSpan={4}>
+                          <div className="flex items-center gap-2 py-0.5">
+                            {item.imageUrl && (
+                              <img
+                                src={item.imageUrl}
+                                alt=""
+                                className="h-7 w-7 rounded object-cover shrink-0"
+                              />
+                            )}
+                            <span className="text-xs truncate max-w-[260px]" title={item.title}>
+                              {item.title}
+                            </span>
+                            {item.quantity > 1 && (
+                              <span className="text-[10px] text-muted-foreground">x{item.quantity}</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell></TableCell>
+                        <TableCell className="text-right text-xs text-muted-foreground whitespace-nowrap">
+                          {formatAmount(item.price, order.currency)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </>
                 ))}
             </>
           );
@@ -232,10 +257,23 @@ export function PackageTable({ orders }: { orders: Order[] }) {
                 </span>
               </TableCell>
               <TableCell></TableCell>
-              <TableCell>
-                <span title={order.items.map((i) => i.title).join(", ")}>
-                  {order.items.length}
-                </span>
+              <TableCell className="max-w-[200px]">
+                {order.items.length > 0 ? (
+                  <div className="flex items-center gap-2">
+                    {order.items[0].imageUrl && (
+                      <img
+                        src={order.items[0].imageUrl}
+                        alt=""
+                        className="h-7 w-7 rounded object-cover shrink-0"
+                      />
+                    )}
+                    <span className="text-xs truncate" title={order.items[0].title}>
+                      {order.items[0].title}
+                    </span>
+                  </div>
+                ) : (
+                  "—"
+                )}
               </TableCell>
               <TableCell className="text-xs whitespace-nowrap">
                 {order.estimatedDelivery
