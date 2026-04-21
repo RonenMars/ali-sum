@@ -10,7 +10,8 @@
     "scripting"
   ],
   "host_permissions": [
-    "https://*.aliexpress.com/*"
+    "https://*.aliexpress.com/*",
+    "http://localhost:3000/*"
   ],
   "action": {
     "default_popup": "popup/popup.html",
