@@ -5,7 +5,10 @@
     "add:ios": "cap add ios",
     "open:ios": "cap open ios",
     "sync": "cap sync ios",
-    "run:ios": "cap run ios"
+    "run:ios": "cap run ios",
+    "ship": "../../.claude/skills/capacitor-ios-ship/scripts/ship.sh",
+    "poll": "bash -c 'source .env.signing && ../../.claude/skills/capacitor-ios-ship/scripts/poll-build.sh com.alisum.app --watch'",
+    "bump": "../../.claude/skills/capacitor-ios-ship/scripts/bump-build.sh"
   },
   "dependencies": {
     "@capacitor/core": "^7.0.0",

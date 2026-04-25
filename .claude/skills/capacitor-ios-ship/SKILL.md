@@ -111,7 +111,7 @@ Create an item titled **`AppStoreConnect`** (type: API Credential) with these cu
 | `auth_key_b64` | base64 of the `.p8`: `base64 -i AuthKey_<KEYID>.p8 \| pbcopy` |
 
 Override the item path with `OP_ITEM=op://<vault>/<item>` if needed. The
-default in the bootstrap script is `op://Private/AppStoreConnect`.
+default in the bootstrap script is `op://MyDevSecrets/AppStoreConnect`.
 
 ### Project side
 
@@ -124,7 +124,7 @@ build/
 *.p8
 ```
 
-The template plist references `op://Private/AppStoreConnect/team_id`
+The template plist references `op://MyDevSecrets/AppStoreConnect/team_id`
 — edit if your vault is named differently.
 
 ### Without 1Password
@@ -186,6 +186,7 @@ Refuse or warn against:
 |---------|-------------|-----|
 | `account is not signed in` from `op` | New shell, no session | `eval "$(op signin)"` (interactive) — or set `OP_SERVICE_ACCOUNT_TOKEN` |
 | Bootstrap dies on PEM sanity check | `.p8` field stripped of newlines (single-line text field) | Re-encode: `base64 -i AuthKey_*.p8` and store in `auth_key_b64` |
+| Archive OK, export fails: `Error Downloading App Information` | App not registered in App Store Connect for this bundle id | Register bundle id at developer.apple.com → Identifiers, then create the app at appstoreconnect.apple.com → My Apps → `+`. One-time UI step (no public API for first-time bundle id registration). |
 | Archive succeeds, upload rejected: "Invalid Bundle Structure" | Stale Pods after `package.json` change | `npx cap sync ios` then re-archive |
 | `processingState=INVALID` | App Store Connect rejected the binary | `curl …/v1/builds/<id>` for reason; common: missing privacy manifest, deprecated APIs |
 | `Build number must be greater than X` | Forgot to bump | `bump-build.sh` then re-archive |
