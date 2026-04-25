@@ -80,9 +80,9 @@ export function ArrivalTimeline({ orders }: { orders: TimelineOrder[] }) {
               <div
                 className={`h-3 w-3 rounded-full shrink-0 mt-1 ring-2 ring-background ${
                   isToday
-                    ? "bg-blue-500"
+                    ? "bg-primary"
                     : isPast
-                      ? "bg-green-500"
+                      ? "bg-[color:var(--positive)]"
                       : "bg-muted-foreground/40"
                 }`}
               />
@@ -95,7 +95,7 @@ export function ArrivalTimeline({ orders }: { orders: TimelineOrder[] }) {
             <div className="pb-6 flex-1 min-w-0">
               {/* Date header */}
               <div className="flex items-baseline gap-2 mb-2">
-                <p className={`text-sm font-medium ${isToday ? "text-blue-600" : ""}`}>
+                <p className={`text-sm font-medium ${isToday ? "text-primary" : ""}`}>
                   {date.toLocaleDateString("en-US", {
                     weekday: "short",
                     month: "short",

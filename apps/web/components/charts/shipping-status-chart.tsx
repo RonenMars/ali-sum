@@ -14,10 +14,10 @@ interface ShippingStatusChartProps {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  "In Transit": "oklch(0.55 0.19 260)",
-  "Delivered": "oklch(0.60 0.18 145)",
-  "Pending / Processing": "oklch(0.75 0.17 75)",
-  "Other": "oklch(0.65 0 0)",
+  "In Transit": "var(--primary)",
+  "Delivered": "var(--positive)",
+  "Pending / Processing": "var(--warning)",
+  "Other": "var(--info)",
 };
 
 function getColor(label: string): string {
@@ -55,12 +55,14 @@ export function ShippingStatusChart({ data }: ShippingStatusChartProps) {
         </Pie>
         <Tooltip
           contentStyle={{
-            backgroundColor: "var(--color-popover)",
-            border: "1px solid var(--color-border)",
-            borderRadius: "8px",
-            color: "var(--color-popover-foreground)",
+            backgroundColor: "var(--popover)",
+            border: "1px solid var(--border)",
+            borderRadius: "12px",
+            color: "var(--popover-foreground)",
             fontSize: "13px",
           }}
+          labelStyle={{ color: "var(--muted-foreground)" }}
+          itemStyle={{ color: "var(--foreground)" }}
           formatter={(value, name) => [
             `${value} order${value !== 1 ? "s" : ""}`,
             name,
@@ -70,7 +72,7 @@ export function ShippingStatusChart({ data }: ShippingStatusChartProps) {
           iconType="circle"
           iconSize={8}
           formatter={(value: string) => (
-            <span style={{ fontSize: "13px", color: "oklch(0.145 0 0)" }}>
+            <span style={{ fontSize: "13px", color: "var(--muted-foreground)" }}>
               {value}
             </span>
           )}

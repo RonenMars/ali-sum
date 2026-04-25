@@ -10,9 +10,6 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-const BRAND_ORANGE = "oklch(0.62 0.21 28)";
-const MUTED_TEXT = "oklch(0.556 0 0)";
-
 interface SellersChartProps {
   data: { name: string; totalSpent: number; orderCount: number }[];
   currency?: string;
@@ -30,10 +27,10 @@ export function SellersChart({ data, currency = "USD" }: SellersChartProps) {
   return (
     <ResponsiveContainer width="100%" height={300}>
       <BarChart data={data} layout="vertical" margin={{ left: 20 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.922 0 0)" horizontal={false} />
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
         <XAxis
           type="number"
-          tick={{ fill: MUTED_TEXT, fontSize: 12 }}
+          tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
           axisLine={false}
           tickLine={false}
           tickFormatter={(v) =>
@@ -47,20 +44,22 @@ export function SellersChart({ data, currency = "USD" }: SellersChartProps) {
         <YAxis
           type="category"
           dataKey="name"
-          tick={{ fill: MUTED_TEXT, fontSize: 12 }}
+          tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
           axisLine={false}
           tickLine={false}
           width={120}
         />
         <Tooltip
           contentStyle={{
-            backgroundColor: "var(--color-popover)",
-            border: "1px solid var(--color-border)",
-            borderRadius: "8px",
-            color: "var(--color-popover-foreground)",
+            backgroundColor: "var(--popover)",
+            border: "1px solid var(--border)",
+            borderRadius: "12px",
+            color: "var(--popover-foreground)",
             fontSize: "13px",
           }}
-          cursor={{ fill: "oklch(0.97 0 0)" }}
+          labelStyle={{ color: "var(--muted-foreground)" }}
+          itemStyle={{ color: "var(--foreground)" }}
+          cursor={{ fill: "var(--accent)", opacity: 0.4 }}
           formatter={(value) => [
             new Intl.NumberFormat("en-US", {
               style: "currency",
@@ -71,7 +70,7 @@ export function SellersChart({ data, currency = "USD" }: SellersChartProps) {
         />
         <Bar
           dataKey="totalSpent"
-          fill={BRAND_ORANGE}
+          fill="var(--primary)"
           radius={[0, 6, 6, 0]}
         />
       </BarChart>

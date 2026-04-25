@@ -93,7 +93,7 @@ function ExtensionConnectContent() {
 
       {status === "success" && (
         <>
-          <p className="text-center text-green-500">
+          <p className="text-center text-[color:var(--positive)]">
             Extension connected successfully.
           </p>
           <p className="text-center text-muted-foreground">

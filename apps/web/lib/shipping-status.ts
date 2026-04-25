@@ -4,53 +4,25 @@ export type ShippingStatusInfo = {
 };
 
 // Maps AliExpress order status strings (case-insensitive substring match) to
-// display label + Tailwind color classes for the badge.
+// display label + tone color classes for the badge. Callers wrap these in a
+// pill (rounded-full + padding); only the bg/text tokens live here.
+const TONE_WARNING = "bg-[color:var(--warning)]/15 text-[color:var(--warning)]";
+const TONE_INFO = "bg-[color:var(--info)]/15 text-[color:var(--info)]";
+const TONE_PRIMARY = "bg-[color:var(--accent-soft)] text-primary";
+const TONE_POSITIVE = "bg-[color:var(--positive)]/15 text-[color:var(--positive)]";
+const TONE_DESTRUCTIVE = "bg-destructive/15 text-destructive";
+const TONE_MUTED = "bg-muted text-muted-foreground";
+
 const STATUS_MAP: Array<{ patterns: RegExp; label: string; className: string }> = [
-  {
-    patterns: /payment\s*pending|awaiting\s*payment|unpaid/i,
-    label: "Payment Pending",
-    className: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
-  },
-  {
-    patterns: /payment\s*accepted|paid|payment\s*complete/i,
-    label: "Payment Accepted",
-    className: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-  },
-  {
-    patterns: /processing|preparing|seller\s*ship|ready\s*to\s*ship/i,
-    label: "Processing",
-    className: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-  },
-  {
-    patterns: /shipped|dispatched/i,
-    label: "Shipped",
-    className: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400",
-  },
-  {
-    patterns: /in\s*transit|on\s*the\s*way|awaiting\s*delivery/i,
-    label: "In Transit",
-    className: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400",
-  },
-  {
-    patterns: /out\s*for\s*delivery|delivering/i,
-    label: "Out for Delivery",
-    className: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
-  },
-  {
-    patterns: /delivered|order\s*complete|completed|received/i,
-    label: "Delivered",
-    className: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-  },
-  {
-    patterns: /return|refund/i,
-    label: "Return / Refund",
-    className: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
-  },
-  {
-    patterns: /cancel/i,
-    label: "Cancelled",
-    className: "bg-gray-100 text-gray-600 dark:bg-gray-800/50 dark:text-gray-400",
-  },
+  { patterns: /payment\s*pending|awaiting\s*payment|unpaid/i, label: "Payment Pending", className: TONE_WARNING },
+  { patterns: /payment\s*accepted|paid|payment\s*complete/i, label: "Payment Accepted", className: TONE_INFO },
+  { patterns: /processing|preparing|seller\s*ship|ready\s*to\s*ship/i, label: "Processing", className: TONE_WARNING },
+  { patterns: /shipped|dispatched/i, label: "Shipped", className: TONE_PRIMARY },
+  { patterns: /in\s*transit|on\s*the\s*way|awaiting\s*delivery/i, label: "In Transit", className: TONE_PRIMARY },
+  { patterns: /out\s*for\s*delivery|delivering/i, label: "Out for Delivery", className: TONE_PRIMARY },
+  { patterns: /delivered|order\s*complete|completed|received/i, label: "Delivered", className: TONE_POSITIVE },
+  { patterns: /return|refund/i, label: "Return / Refund", className: TONE_DESTRUCTIVE },
+  { patterns: /cancel/i, label: "Cancelled", className: TONE_MUTED },
 ];
 
 export function getShippingStatus(status: string): ShippingStatusInfo {

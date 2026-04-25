@@ -170,7 +170,7 @@ export function PackageTable({ orders }: { orders: Order[] }) {
                           href={`https://www.aliexpress.com/p/order/detail.html?orderId=${order.aliOrderId}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="hover:underline text-blue-600"
+                          className="hover:underline text-primary"
                         >
                           {order.aliOrderId}
                         </a>
@@ -241,7 +241,7 @@ export function PackageTable({ orders }: { orders: Order[] }) {
                   href={`https://www.aliexpress.com/p/order/detail.html?orderId=${order.aliOrderId}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="hover:underline text-blue-600"
+                  className="hover:underline text-primary"
                 >
                   {order.aliOrderId}
                 </a>

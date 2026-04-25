@@ -10,9 +10,6 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-const CHART_BLUE = "oklch(0.55 0.19 260)";
-const MUTED_TEXT = "oklch(0.556 0 0)";
-
 interface DeliveryTimelineChartProps {
   data: { week: string; count: number }[];
 }
@@ -29,28 +26,30 @@ export function DeliveryTimelineChart({ data }: DeliveryTimelineChartProps) {
   return (
     <ResponsiveContainer width="100%" height={300}>
       <BarChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.922 0 0)" vertical={false} />
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
         <XAxis
           dataKey="week"
-          tick={{ fill: MUTED_TEXT, fontSize: 12 }}
+          tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
           axisLine={false}
           tickLine={false}
         />
         <YAxis
-          tick={{ fill: MUTED_TEXT, fontSize: 12 }}
+          tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
           axisLine={false}
           tickLine={false}
           allowDecimals={false}
         />
         <Tooltip
           contentStyle={{
-            backgroundColor: "var(--color-popover)",
-            border: "1px solid var(--color-border)",
-            borderRadius: "8px",
-            color: "var(--color-popover-foreground)",
+            backgroundColor: "var(--popover)",
+            border: "1px solid var(--border)",
+            borderRadius: "12px",
+            color: "var(--popover-foreground)",
             fontSize: "13px",
           }}
-          cursor={{ fill: "oklch(0.97 0 0)" }}
+          labelStyle={{ color: "var(--muted-foreground)" }}
+          itemStyle={{ color: "var(--foreground)" }}
+          cursor={{ fill: "var(--accent)", opacity: 0.4 }}
           formatter={(value) => [
             `${value} package${value !== 1 ? "s" : ""}`,
             "Expected",
@@ -58,7 +57,7 @@ export function DeliveryTimelineChart({ data }: DeliveryTimelineChartProps) {
         />
         <Bar
           dataKey="count"
-          fill={CHART_BLUE}
+          fill="var(--primary)"
           radius={[6, 6, 0, 0]}
         />
       </BarChart>

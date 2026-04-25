@@ -1,0 +1,108 @@
+import * as React from "react";
+import { ArrowDownRight, ArrowUpRight } from "lucide-react";
+
+import { cn } from "@/lib/utils";
+import { Sparkline } from "@/components/ui/sparkline";
+
+type DeltaTone = "positive" | "negative" | "neutral";
+
+interface KpiCardProps {
+  eyebrow: string;
+  value: React.ReactNode;
+  delta?: { label: string; tone?: DeltaTone };
+  sparkline?: number[];
+  /** Hero variant — bigger number, violet glow halo behind it, gradient sparkline. */
+  variant?: "default" | "hero";
+  className?: string;
+}
+
+/**
+ * Editorial-style KPI tile: eyebrow label, giant tabular-nums number,
+ * optional delta chip, and a full-bleed sparkline at the bottom edge.
+ * The `hero` variant adds a soft violet halo behind the number and uses
+ * a violet→magenta gradient sparkline for the primary metric.
+ */
+export function KpiCard({
+  eyebrow,
+  value,
+  delta,
+  sparkline,
+  variant = "default",
+  className,
+}: KpiCardProps) {
+  const isHero = variant === "hero";
+
+  return (
+    <div
+      data-variant={variant}
+      className={cn(
+        "relative flex flex-col overflow-hidden rounded-xl border border-border bg-card",
+        "transition-colors hover:bg-card/80",
+        className
+      )}
+    >
+      {isHero && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -top-12 left-6 size-44 rounded-full bg-[color:var(--accent-soft)] blur-3xl opacity-80"
+        />
+      )}
+
+      <div className={cn("relative flex flex-col gap-3", isHero ? "p-5" : "p-4")}>
+        <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+          {eyebrow}
+        </span>
+        <div className="flex items-baseline gap-3">
+          <span
+            className={cn(
+              "font-heading font-semibold tabular-nums tracking-tight",
+              isHero
+                ? "text-4xl text-primary lg:text-[44px] lg:leading-[1.05]"
+                : "text-2xl lg:text-3xl"
+            )}
+          >
+            {value}
+          </span>
+          {delta && <DeltaChip {...delta} />}
+        </div>
+      </div>
+
+      {sparkline && sparkline.length > 1 && (
+        <div className="-mt-1 h-10 w-full px-1 pb-1">
+          <Sparkline
+            data={sparkline}
+            height={40}
+            strokeWidth={isHero ? 2 : 1.5}
+            gradient={
+              isHero
+                ? { from: "var(--primary)", to: "var(--magenta)" }
+                : undefined
+            }
+            stroke={isHero ? undefined : "var(--muted-foreground)"}
+            className={isHero ? "" : "opacity-70"}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DeltaChip({ label, tone = "neutral" }: { label: string; tone?: DeltaTone }) {
+  const isPositive = tone === "positive";
+  const isNegative = tone === "negative";
+  const Icon = isNegative ? ArrowDownRight : ArrowUpRight;
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-medium tabular-nums",
+        isPositive && "bg-[color:var(--positive)]/15 text-[color:var(--positive)]",
+        isNegative && "bg-destructive/15 text-destructive",
+        !isPositive && !isNegative && "bg-muted text-muted-foreground"
+      )}
+    >
+      <Icon className="size-3" aria-hidden />
+      {label}
+    </span>
+  );
+}

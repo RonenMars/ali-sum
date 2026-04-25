@@ -10,10 +10,6 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-// Hardcoded oklch-equivalent colors for SVG attribute compatibility
-const BRAND_ORANGE = "oklch(0.62 0.21 28)";
-const MUTED_TEXT = "oklch(0.556 0 0)";
-
 interface SpendingChartProps {
   data: { period: string; amount: number; orderCount: number }[];
   currency?: string;
@@ -33,19 +29,24 @@ export function SpendingChart({ data, currency = "USD" }: SpendingChartProps) {
       <AreaChart data={data}>
         <defs>
           <linearGradient id="spendingGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={BRAND_ORANGE} stopOpacity={0.25} />
-            <stop offset="95%" stopColor={BRAND_ORANGE} stopOpacity={0} />
+            <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.32} />
+            <stop offset="60%" stopColor="var(--magenta)" stopOpacity={0.08} />
+            <stop offset="95%" stopColor="var(--magenta)" stopOpacity={0} />
+          </linearGradient>
+          <linearGradient id="spendingStroke" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="var(--primary)" />
+            <stop offset="100%" stopColor="var(--magenta)" />
           </linearGradient>
         </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.922 0 0)" />
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
         <XAxis
           dataKey="period"
-          tick={{ fill: MUTED_TEXT, fontSize: 12 }}
+          tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
           axisLine={false}
           tickLine={false}
         />
         <YAxis
-          tick={{ fill: MUTED_TEXT, fontSize: 12 }}
+          tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
           axisLine={false}
           tickLine={false}
           tickFormatter={(v) =>
@@ -58,12 +59,14 @@ export function SpendingChart({ data, currency = "USD" }: SpendingChartProps) {
         />
         <Tooltip
           contentStyle={{
-            backgroundColor: "var(--color-popover)",
-            border: "1px solid var(--color-border)",
-            borderRadius: "8px",
-            color: "var(--color-popover-foreground)",
+            backgroundColor: "var(--popover)",
+            border: "1px solid var(--border)",
+            borderRadius: "12px",
+            color: "var(--popover-foreground)",
             fontSize: "13px",
           }}
+          labelStyle={{ color: "var(--muted-foreground)" }}
+          itemStyle={{ color: "var(--foreground)" }}
           formatter={(value) => [
             new Intl.NumberFormat("en-US", {
               style: "currency",
@@ -75,11 +78,11 @@ export function SpendingChart({ data, currency = "USD" }: SpendingChartProps) {
         <Area
           type="monotone"
           dataKey="amount"
-          stroke={BRAND_ORANGE}
+          stroke="url(#spendingStroke)"
           fill="url(#spendingGradient)"
           strokeWidth={2.5}
           dot={false}
-          activeDot={{ r: 4, fill: BRAND_ORANGE }}
+          activeDot={{ r: 4, fill: "var(--primary)", stroke: "var(--background)", strokeWidth: 2 }}
         />
       </AreaChart>
     </ResponsiveContainer>

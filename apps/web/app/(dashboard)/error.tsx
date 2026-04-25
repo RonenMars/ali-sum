@@ -15,7 +15,7 @@ export default function DashboardError({
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-      <p className="text-sm text-red-600">Something went wrong.</p>
+      <p className="text-sm text-destructive">Something went wrong.</p>
       {error.message && (
         <p className="text-xs text-muted-foreground">{error.message}</p>
       )}

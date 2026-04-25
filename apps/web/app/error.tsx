@@ -16,7 +16,7 @@ export default function GlobalError({
   return (
     <html>
       <body className="flex flex-col items-center justify-center min-h-screen gap-4">
-        <p className="text-sm text-red-600">Something went wrong.</p>
+        <p className="text-sm text-destructive">Something went wrong.</p>
         {error.message && (
           <p className="text-xs text-muted-foreground">{error.message}</p>
         )}
