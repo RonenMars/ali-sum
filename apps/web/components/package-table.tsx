@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { formatAmount } from "@/lib/format";
 import { getShippingStatus } from "@/lib/shipping-status";
 import {
@@ -127,9 +127,8 @@ export function PackageTable({ orders }: { orders: Order[] }) {
           const isOpen = expanded.has(pkg.trackingNumber);
           const statusInfo = getShippingStatus(pkg.status);
           return (
-            <>
+            <Fragment key={pkg.trackingNumber}>
               <TableRow
-                key={pkg.trackingNumber}
                 className="cursor-pointer hover:bg-accent/50"
                 onClick={() => toggle(pkg.trackingNumber)}
               >
@@ -162,8 +161,8 @@ export function PackageTable({ orders }: { orders: Order[] }) {
               </TableRow>
               {isOpen &&
                 pkg.orders.map((order) => (
-                  <>
-                    <TableRow key={order.id} className="bg-muted/30">
+                  <Fragment key={order.id}>
+                    <TableRow className="bg-muted/30">
                       <TableCell></TableCell>
                       <TableCell className="font-mono text-xs" colSpan={2}>
                         <a
@@ -214,9 +213,9 @@ export function PackageTable({ orders }: { orders: Order[] }) {
                         </TableCell>
                       </TableRow>
                     ))}
-                  </>
+                  </Fragment>
                 ))}
-            </>
+            </Fragment>
           );
         })}
 
