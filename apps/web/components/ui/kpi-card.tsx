@@ -1,10 +1,8 @@
 import * as React from "react";
-import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Sparkline } from "@/components/ui/sparkline";
-
-type DeltaTone = "positive" | "negative" | "neutral";
+import { MetricDelta, type DeltaTone } from "@/components/ui/metric-delta";
 
 interface KpiCardProps {
   eyebrow: string;
@@ -63,7 +61,7 @@ export function KpiCard({
           >
             {value}
           </span>
-          {delta && <DeltaChip {...delta} />}
+          {delta && <MetricDelta label={delta.label} tone={delta.tone} />}
         </div>
       </div>
 
@@ -84,25 +82,5 @@ export function KpiCard({
         </div>
       )}
     </div>
-  );
-}
-
-function DeltaChip({ label, tone = "neutral" }: { label: string; tone?: DeltaTone }) {
-  const isPositive = tone === "positive";
-  const isNegative = tone === "negative";
-  const Icon = isNegative ? ArrowDownRight : ArrowUpRight;
-
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-medium tabular-nums",
-        isPositive && "bg-[color:var(--positive)]/15 text-[color:var(--positive)]",
-        isNegative && "bg-destructive/15 text-destructive",
-        !isPositive && !isNegative && "bg-muted text-muted-foreground"
-      )}
-    >
-      <Icon className="size-3" aria-hidden />
-      {label}
-    </span>
   );
 }
