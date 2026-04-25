@@ -16,8 +16,9 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 OP_ITEM="${OP_ITEM:-op://Private/AppStoreConnect}"
-TEMPLATE="${TEMPLATE:-scripts/ExportOptions.template.plist}"
+TEMPLATE="${TEMPLATE:-$SCRIPT_DIR/ExportOptions.template.plist}"
 OUTPUT_PLIST="${OUTPUT_PLIST:-build/ExportOptions.plist}"
 ENV_FILE="${ENV_FILE:-.env.signing}"
 
