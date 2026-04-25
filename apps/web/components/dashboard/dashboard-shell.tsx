@@ -201,41 +201,43 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
       {/* Main content area */}
       <div className="flex-1 md:pl-60">
         {/* Mobile header */}
-        <header className="md:hidden sticky top-0 z-40 flex h-14 items-center justify-between border-b bg-background/95 backdrop-blur px-4">
-          <button
-            onClick={() => setMobileOpen(true)}
-            className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          >
-            <Menu className="size-5" />
-          </button>
-          <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary">
-              <ShoppingCart className="size-3.5 text-primary-foreground" />
-            </div>
-            <span className="font-semibold text-sm">ali-sum</span>
-          </Link>
-          <DropdownMenu>
-            <DropdownMenuTrigger className="h-8 w-8 rounded-full p-0 outline-none">
-              <Avatar className="h-8 w-8">
-                <AvatarFallback className="text-xs">{initials}</AvatarFallback>
-              </Avatar>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem className="text-xs text-muted-foreground" disabled>
-                {user.email}
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Link href="/settings" className="w-full">
-                  Settings
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => signOut({ callbackUrl: "/login" })}
-              >
-                Sign out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        <header className="md:hidden sticky top-0 z-40 border-b bg-background/95 backdrop-blur pt-[env(safe-area-inset-top)]">
+          <div className="flex h-14 items-center justify-between px-4">
+            <button
+              onClick={() => setMobileOpen(true)}
+              className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <Menu className="size-5" />
+            </button>
+            <Link href="/" className="flex items-center gap-2">
+              <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary">
+                <ShoppingCart className="size-3.5 text-primary-foreground" />
+              </div>
+              <span className="font-semibold text-sm">ali-sum</span>
+            </Link>
+            <DropdownMenu>
+              <DropdownMenuTrigger className="h-8 w-8 rounded-full p-0 outline-none">
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+                </Avatar>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem className="text-xs text-muted-foreground" disabled>
+                  {user.email}
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Link href="/settings" className="w-full">
+                    Settings
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => signOut({ callbackUrl: "/login" })}
+                >
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </header>
 
         <main className="mx-auto max-w-6xl px-6 py-8">{children}</main>
