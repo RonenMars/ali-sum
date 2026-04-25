@@ -233,7 +233,7 @@ export default function SpendingPage() {
       </section>
 
       <section className="overflow-hidden rounded-xl border border-border bg-card">
-        <header className="flex items-center justify-between border-b border-border px-5 py-4 md:px-6">
+        <header className="flex items-center justify-between border-b border-border px-4 py-4 md:px-6">
           <h2 className="font-heading text-base font-semibold tracking-tight text-foreground">
             {groupingLabel} Comparison
           </h2>
@@ -243,49 +243,26 @@ export default function SpendingPage() {
             No spending data for the selected range.
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow className="border-border hover:bg-transparent">
-                <TableHead className="px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground md:px-6">
-                  Period
-                </TableHead>
-                <TableHead className="px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground md:px-6">
-                  Spend
-                </TableHead>
-                <TableHead className="px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground md:px-6">
-                  Delta
-                </TableHead>
-                <TableHead className="px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground md:px-6">
-                  Orders
-                </TableHead>
-                <TableHead className="px-5 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground md:px-6">
-                  Avg Order
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          <>
+            {/* Mobile: stacked rows */}
+            <ul className="flex flex-col divide-y divide-border md:hidden">
               {comparison.map((row) => (
-                <TableRow
-                  key={row.period}
-                  className="border-border transition-colors hover:bg-[color:var(--accent-soft)]/40"
-                >
-                  <TableCell className="px-5 py-4 md:px-6">
-                    <div className="flex items-center gap-3">
-                      <span className="flex size-8 items-center justify-center rounded-md bg-[color:var(--accent-soft)] font-mono text-[11px] font-semibold tabular-nums text-primary">
+                <li key={row.period} className="flex flex-col gap-2 px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-[color:var(--accent-soft)] font-mono text-[11px] font-semibold tabular-nums text-primary">
                         {row.badge}
                       </span>
-                      <span className="font-medium text-foreground">
+                      <span className="truncate text-sm font-medium text-foreground">
                         {row.label}
                       </span>
                     </div>
-                  </TableCell>
-                  <TableCell className="px-5 py-4 font-mono text-foreground tabular-nums md:px-6">
-                    {formatMoney(row.amount)}
-                  </TableCell>
-                  <TableCell className="px-5 py-4 md:px-6">
-                    {row.deltaPct === null ? (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    ) : (
+                    <span className="shrink-0 font-mono text-sm font-medium tabular-nums text-foreground">
+                      {formatMoney(row.amount)}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                    {row.deltaPct !== null && (
                       <MetricDelta
                         label={`${row.deltaPct > 0 ? "+" : ""}${row.deltaPct.toFixed(1)}%`}
                         tone={
@@ -298,17 +275,87 @@ export default function SpendingPage() {
                         withArrow={false}
                       />
                     )}
-                  </TableCell>
-                  <TableCell className="px-5 py-4 text-muted-foreground tabular-nums md:px-6">
-                    {row.orderCount}
-                  </TableCell>
-                  <TableCell className="px-5 py-4 text-right font-mono text-muted-foreground tabular-nums md:px-6">
-                    {formatMoney(row.avgOrder)}
-                  </TableCell>
-                </TableRow>
+                    <span className="tabular-nums">
+                      {row.orderCount} {row.orderCount === 1 ? "order" : "orders"}
+                    </span>
+                    <span className="tabular-nums">
+                      avg {formatMoney(row.avgOrder)}
+                    </span>
+                  </div>
+                </li>
               ))}
-            </TableBody>
-          </Table>
+            </ul>
+
+            {/* Desktop: full table */}
+            <div className="hidden md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border hover:bg-transparent">
+                    <TableHead className="px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground md:px-6">
+                      Period
+                    </TableHead>
+                    <TableHead className="px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground md:px-6">
+                      Spend
+                    </TableHead>
+                    <TableHead className="px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground md:px-6">
+                      Delta
+                    </TableHead>
+                    <TableHead className="px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground md:px-6">
+                      Orders
+                    </TableHead>
+                    <TableHead className="px-5 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground md:px-6">
+                      Avg Order
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {comparison.map((row) => (
+                    <TableRow
+                      key={row.period}
+                      className="border-border transition-colors hover:bg-[color:var(--accent-soft)]/40"
+                    >
+                      <TableCell className="px-5 py-4 md:px-6">
+                        <div className="flex items-center gap-3">
+                          <span className="flex size-8 items-center justify-center rounded-md bg-[color:var(--accent-soft)] font-mono text-[11px] font-semibold tabular-nums text-primary">
+                            {row.badge}
+                          </span>
+                          <span className="font-medium text-foreground">
+                            {row.label}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-5 py-4 font-mono text-foreground tabular-nums md:px-6">
+                        {formatMoney(row.amount)}
+                      </TableCell>
+                      <TableCell className="px-5 py-4 md:px-6">
+                        {row.deltaPct === null ? (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        ) : (
+                          <MetricDelta
+                            label={`${row.deltaPct > 0 ? "+" : ""}${row.deltaPct.toFixed(1)}%`}
+                            tone={
+                              row.deltaPct > 0
+                                ? "positive"
+                                : row.deltaPct < 0
+                                  ? "negative"
+                                  : "neutral"
+                            }
+                            withArrow={false}
+                          />
+                        )}
+                      </TableCell>
+                      <TableCell className="px-5 py-4 text-muted-foreground tabular-nums md:px-6">
+                        {row.orderCount}
+                      </TableCell>
+                      <TableCell className="px-5 py-4 text-right font-mono text-muted-foreground tabular-nums md:px-6">
+                        {formatMoney(row.avgOrder)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </>
         )}
       </section>
     </div>

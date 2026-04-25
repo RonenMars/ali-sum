@@ -43,7 +43,7 @@ export function PageHeader({
           <p className="text-sm text-muted-foreground">{subtitle}</p>
         )}
       </div>
-      {actions && <div className="shrink-0">{actions}</div>}
+      {actions && <div className="w-full min-w-0 md:w-auto md:shrink-0">{actions}</div>}
     </header>
   );
 }

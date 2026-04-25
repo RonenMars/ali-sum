@@ -66,28 +66,50 @@ export default async function SellersPage() {
               No seller data yet.
             </p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Seller</TableHead>
-                  <TableHead className="text-right">Orders</TableHead>
-                  <TableHead className="text-right">Total Spent</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile: stacked rows */}
+              <ul className="flex flex-col divide-y divide-border md:hidden">
                 {sellers.map((seller) => (
-                  <TableRow key={seller.name}>
-                    <TableCell className="font-medium">{seller.name}</TableCell>
-                    <TableCell className="text-right">
-                      {seller.orderCount}
-                    </TableCell>
-                    <TableCell className="text-right">
+                  <li key={seller.name} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{seller.name}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {seller.orderCount} {seller.orderCount === 1 ? "order" : "orders"}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-sm font-medium tabular-nums">
                       {formatAmount(seller.totalSpent, primaryCurrency)}
-                    </TableCell>
-                  </TableRow>
+                    </span>
+                  </li>
                 ))}
-              </TableBody>
-            </Table>
+              </ul>
+
+              {/* Desktop: table */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Seller</TableHead>
+                      <TableHead className="text-right">Orders</TableHead>
+                      <TableHead className="text-right">Total Spent</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sellers.map((seller) => (
+                      <TableRow key={seller.name}>
+                        <TableCell className="font-medium">{seller.name}</TableCell>
+                        <TableCell className="text-right">
+                          {seller.orderCount}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatAmount(seller.totalSpent, primaryCurrency)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

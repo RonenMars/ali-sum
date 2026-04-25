@@ -199,7 +199,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
       )}
 
       {/* Main content area */}
-      <div className="flex-1 md:pl-60">
+      <div className="flex-1 min-w-0 md:pl-60">
         {/* Mobile header */}
         <header className="md:hidden sticky top-0 z-40 border-b bg-background/95 backdrop-blur pt-[env(safe-area-inset-top)]">
           <div className="flex h-14 items-center justify-between px-4">
@@ -240,7 +240,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
           </div>
         </header>
 
-        <main className="mx-auto max-w-6xl px-6 py-8">{children}</main>
+        <main className="mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-8">{children}</main>
       </div>
     </div>
   );

@@ -87,15 +87,15 @@ export function DateRangeFilter() {
   }, [applyRange]);
 
   return (
-    <div className="flex flex-col gap-2 items-end">
-      {/* Preset pills */}
-      <div className="flex flex-wrap gap-1 justify-end">
+    <div className="flex w-full flex-col gap-2 md:w-auto md:items-end">
+      {/* Preset pills — horizontal scroll on mobile, wrap on md+ */}
+      <div className="-mx-4 flex gap-1 overflow-x-auto px-4 md:mx-0 md:flex-wrap md:justify-end md:overflow-visible md:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {PRESETS.map((p) => (
           <button
             key={p.label}
             onClick={() => handlePreset(p)}
             className={[
-              "px-2.5 py-1 rounded-full text-xs font-medium transition-all",
+              "shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium transition-all",
               activePreset === p.label
                 ? "bg-primary text-primary-foreground shadow-sm"
                 : "border border-border text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-muted/50",
@@ -106,26 +106,26 @@ export function DateRangeFilter() {
         ))}
       </div>
 
-      {/* Date inputs */}
-      <div className="flex items-center gap-2 flex-wrap justify-end">
-        <div className="flex items-center gap-1.5">
+      {/* Date inputs — stack full-width on mobile */}
+      <div className="flex flex-wrap items-center gap-2 md:justify-end">
+        <label className="flex flex-1 items-center gap-1.5 md:flex-none">
           <span className="text-xs text-muted-foreground">From</span>
           <input
             type="date"
             value={from}
             onChange={(e) => handleFromChange(e.target.value)}
-            className={dateInputClass}
+            className={`${dateInputClass} flex-1 md:flex-none`}
           />
-        </div>
-        <div className="flex items-center gap-1.5">
+        </label>
+        <label className="flex flex-1 items-center gap-1.5 md:flex-none">
           <span className="text-xs text-muted-foreground">To</span>
           <input
             type="date"
             value={to}
             onChange={(e) => handleToChange(e.target.value)}
-            className={dateInputClass}
+            className={`${dateInputClass} flex-1 md:flex-none`}
           />
-        </div>
+        </label>
         {activePreset !== DEFAULT_PRESET && (
           <button
             onClick={reset}

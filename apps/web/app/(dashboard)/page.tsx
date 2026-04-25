@@ -240,7 +240,59 @@ export default async function DashboardPage({
             </p>
           ) : (
             <>
-            <div className="overflow-x-auto">
+            {/* Mobile: stacked card list */}
+            <ul className="flex flex-col divide-y divide-border md:hidden">
+              {recentOrders.map((order) => {
+                const firstItem = order.items[0];
+                return (
+                  <li key={order.id} className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <a
+                          href={`https://www.aliexpress.com/p/order/detail.html?orderId=${order.aliOrderId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block truncate font-mono text-xs text-primary hover:underline"
+                        >
+                          {order.aliOrderId}
+                        </a>
+                        <p className="text-[11px] text-muted-foreground">
+                          {new Date(order.orderDate).toLocaleDateString()}
+                          {order.sellerName ? ` · ${order.sellerName}` : ""}
+                        </p>
+                      </div>
+                      <div className="text-right text-sm font-medium tabular-nums">
+                        {formatAmount(order.totalAmount, order.currency)}
+                      </div>
+                    </div>
+                    {firstItem && (
+                      <div className="flex items-center gap-2">
+                        {firstItem.imageUrl && (
+                          <img
+                            src={firstItem.imageUrl}
+                            alt=""
+                            className="size-8 shrink-0 rounded object-cover"
+                          />
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs" title={firstItem.title}>
+                            {firstItem.title}
+                          </p>
+                          {order.items.length > 1 && (
+                            <p className="text-[10px] text-muted-foreground">
+                              +{order.items.length - 1} more
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+
+            {/* Desktop: full table */}
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-muted-foreground">

@@ -109,8 +109,165 @@ export function PackageTable({ orders }: { orders: Order[] }) {
   }
 
   return (
-    <Table>
-      <TableHeader>
+    <>
+      {/* Mobile: stacked card list */}
+      <ul className="flex flex-col divide-y divide-border md:hidden">
+        {packages.map((pkg) => {
+          const isOpen = expanded.has(pkg.trackingNumber);
+          const statusInfo = getShippingStatus(pkg.status);
+          return (
+            <li key={pkg.trackingNumber} className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0">
+              <button
+                type="button"
+                onClick={() => toggle(pkg.trackingNumber)}
+                className="flex w-full items-start justify-between gap-3 text-left"
+                aria-expanded={isOpen}
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="flex items-center gap-1.5 truncate font-mono text-xs font-medium">
+                    <span className="text-muted-foreground">
+                      {isOpen ? "▾" : "▸"}
+                    </span>
+                    {pkg.trackingNumber}
+                  </p>
+                  {pkg.carrier && (
+                    <p className="truncate text-[11px] text-muted-foreground">
+                      {pkg.carrier}
+                    </p>
+                  )}
+                </div>
+                <div className="text-right text-sm font-medium tabular-nums">
+                  {formatAmount(pkg.totalAmount, pkg.currency)}
+                </div>
+              </button>
+
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+                <span
+                  className={`inline-flex h-5 items-center rounded-full px-2 text-[11px] font-medium ${statusInfo.className}`}
+                >
+                  {statusInfo.label}
+                </span>
+                <span>
+                  {pkg.orders.length} {pkg.orders.length === 1 ? "order" : "orders"} · {pkg.itemCount} {pkg.itemCount === 1 ? "item" : "items"}
+                </span>
+                {pkg.estimatedDelivery && (
+                  <span>
+                    ETA {new Date(pkg.estimatedDelivery).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+
+              {isOpen && (
+                <ul className="flex flex-col gap-3 rounded-md bg-muted/30 p-3">
+                  {pkg.orders.map((order) => (
+                    <li key={order.id} className="flex flex-col gap-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <a
+                          href={`https://www.aliexpress.com/p/order/detail.html?orderId=${order.aliOrderId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="truncate font-mono text-xs text-primary hover:underline"
+                        >
+                          {order.aliOrderId}
+                        </a>
+                        <span className="text-xs font-medium tabular-nums">
+                          {formatAmount(order.totalAmount, order.currency)}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        {new Date(order.orderDate).toLocaleDateString()}
+                        {order.sellerName ? ` · ${order.sellerName}` : ""}
+                      </p>
+                      {order.items.map((item) => (
+                        <div key={item.id} className="flex items-center gap-2">
+                          {item.imageUrl && (
+                            <img
+                              src={item.imageUrl}
+                              alt=""
+                              className="size-7 shrink-0 rounded object-cover"
+                            />
+                          )}
+                          <span className="min-w-0 flex-1 truncate text-xs" title={item.title}>
+                            {item.title}
+                            {item.quantity > 1 && (
+                              <span className="ml-1 text-[10px] text-muted-foreground">
+                                x{item.quantity}
+                              </span>
+                            )}
+                          </span>
+                          <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">
+                            {formatAmount(item.price, order.currency)}
+                          </span>
+                        </div>
+                      ))}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </li>
+          );
+        })}
+
+        {ungrouped.length > 0 && packages.length > 0 && (
+          <li className="py-2 text-[11px] font-medium text-muted-foreground">
+            Orders without tracking
+          </li>
+        )}
+
+        {ungrouped.map((order) => {
+          const statusInfo = getShippingStatus(order.status);
+          const firstItem = order.items[0];
+          return (
+            <li key={order.id} className="flex flex-col gap-2 py-3">
+              <div className="flex items-start justify-between gap-3">
+                <a
+                  href={`https://www.aliexpress.com/p/order/detail.html?orderId=${order.aliOrderId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="truncate font-mono text-xs text-primary hover:underline"
+                >
+                  {order.aliOrderId}
+                </a>
+                <span className="text-sm font-medium tabular-nums">
+                  {formatAmount(order.totalAmount, order.currency)}
+                </span>
+              </div>
+              {firstItem && (
+                <div className="flex items-center gap-2">
+                  {firstItem.imageUrl && (
+                    <img
+                      src={firstItem.imageUrl}
+                      alt=""
+                      className="size-8 shrink-0 rounded object-cover"
+                    />
+                  )}
+                  <span className="truncate text-xs" title={firstItem.title}>
+                    {firstItem.title}
+                  </span>
+                </div>
+              )}
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+                <span
+                  className={`inline-flex h-5 items-center rounded-full px-2 text-[11px] font-medium ${statusInfo.className}`}
+                >
+                  {statusInfo.label}
+                </span>
+                {order.sellerName && <span className="truncate">{order.sellerName}</span>}
+                {order.estimatedDelivery && (
+                  <span>
+                    ETA {new Date(order.estimatedDelivery).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+
+      {/* Desktop: full table */}
+      <div className="hidden md:block">
+        <Table>
+          <TableHeader>
         <TableRow>
           <TableHead className="w-8"></TableHead>
           <TableHead>Tracking Number</TableHead>
@@ -285,7 +442,9 @@ export function PackageTable({ orders }: { orders: Order[] }) {
             </TableRow>
           );
         })}
-      </TableBody>
-    </Table>
+        </TableBody>
+      </Table>
+      </div>
+    </>
   );
 }
