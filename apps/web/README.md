@@ -31,7 +31,7 @@ app/
 └── api/              # Auth, orders sync, analytics endpoints
 components/
 ├── charts/           # SpendingChart, SellersChart, SummaryCards
-├── dashboard/        # DashboardShell, ExtensionTokenButton
+├── dashboard/        # DashboardShell, MobileTabBar, ExtensionTokenRow, etc.
 └── ui/               # shadcn/ui components
 lib/                  # Prisma client, auth config, API auth middleware, date-filter constants
 prisma/               # Schema & migrations
