@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
@@ -11,8 +10,6 @@ import {
   ShoppingBag,
   Package,
   Settings2,
-  Menu,
-  X,
   LogOut,
   ShoppingCart,
   Search,
@@ -26,6 +23,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { MobileTabBar } from "@/components/dashboard/mobile-tab-bar";
 
 const primaryNav = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
@@ -141,7 +139,6 @@ function SidebarLogo({ onClick }: { onClick?: () => void }) {
 
 export function DashboardShell({ user, children }: DashboardShellProps) {
   const pathname = usePathname();
-  const [mobileOpen, setMobileOpen] = useState(false);
 
   const initials = (user.name || user.email || "U")
     .split(" ")
@@ -150,7 +147,6 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
     .toUpperCase()
     .slice(0, 2);
 
-  const displayName = user.name || user.email || "User";
   const firstName =
     (user.name || user.email || "User").split(/[\s@]+/)[0] || "User";
 
@@ -210,53 +206,6 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
         </div>
       </aside>
 
-      {/* Mobile overlay sidebar */}
-      {mobileOpen && (
-        <div className="md:hidden fixed inset-0 z-50 flex">
-          <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => setMobileOpen(false)}
-          />
-          <aside className="relative flex flex-col w-64 bg-sidebar border-r border-sidebar-border shadow-xl">
-            <div className="flex items-center justify-between border-b border-sidebar-border">
-              <SidebarLogo onClick={() => setMobileOpen(false)} />
-              <button
-                onClick={() => setMobileOpen(false)}
-                className="mr-3 rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-card transition-colors"
-              >
-                <X className="size-4" />
-              </button>
-            </div>
-            <div className="flex flex-1 flex-col overflow-y-auto py-4">
-              <NavList
-                pathname={pathname}
-                onSelect={() => setMobileOpen(false)}
-              />
-            </div>
-            <div className="px-3 py-4 border-t border-sidebar-border">
-              <div className="flex items-center gap-2.5 px-3 py-2">
-                <Avatar className="h-8 w-8 shrink-0">
-                  <AvatarFallback className="text-xs bg-primary/15 text-primary font-semibold">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold truncate">
-                    {displayName}
-                  </p>
-                </div>
-                <button
-                  onClick={() => signOut({ callbackUrl: "/login" })}
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <LogOut className="size-4" />
-                </button>
-              </div>
-            </div>
-          </aside>
-        </div>
-      )}
-
       {/* Main content area */}
       <div className="flex-1 min-w-0 md:pl-60">
         {/* Desktop topbar */}
@@ -306,20 +255,16 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
           </div>
         </header>
 
-        {/* Mobile header */}
+        {/* Mobile header — logo + avatar dropdown only; nav is the bottom tab bar */}
         <header className="md:hidden sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur pt-[env(safe-area-inset-top)]">
           <div className="flex h-14 items-center justify-between px-4">
-            <button
-              onClick={() => setMobileOpen(true)}
-              className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-card transition-colors"
-            >
-              <Menu className="size-5" />
-            </button>
             <Link href="/" className="flex items-center gap-2">
-              <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/15 ring-1 ring-primary/30">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15 ring-1 ring-primary/30">
                 <ShoppingCart className="size-3.5 text-primary" />
               </div>
-              <span className="font-bold tracking-tight text-sm">ali-sum</span>
+              <span className="font-bold tracking-tight text-base text-primary">
+                ali-sum
+              </span>
             </Link>
             <DropdownMenu>
               <DropdownMenuTrigger className="h-8 w-8 rounded-full p-0 outline-none">
@@ -344,6 +289,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
                 <DropdownMenuItem
                   onClick={() => signOut({ callbackUrl: "/login" })}
                 >
+                  <LogOut className="size-3.5" />
                   Sign out
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -351,10 +297,12 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
           </div>
         </header>
 
-        <main className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-8">
+        <main className="mx-auto max-w-7xl px-4 pt-6 pb-24 md:px-8 md:py-8">
           {children}
         </main>
       </div>
+
+      <MobileTabBar />
     </div>
   );
 }
