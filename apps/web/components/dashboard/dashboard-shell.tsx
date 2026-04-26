@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MobileTabBar } from "@/components/dashboard/mobile-tab-bar";
+import { GlobalSearch } from "@/components/dashboard/global-search";
 
 const primaryNav = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
@@ -209,6 +210,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
       <div className="flex-1 min-w-0 md:pl-60">
         {/* Desktop topbar */}
         <header className="hidden md:flex sticky top-0 z-40 h-14 items-center gap-4 border-b border-border bg-card/80 px-6 backdrop-blur supports-[backdrop-filter]:bg-card/60">
+          <GlobalSearch className="w-full max-w-md" />
           <div className="ml-auto flex items-center gap-1.5">
             <button
               type="button"
@@ -254,7 +256,9 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
                 ali-sum
               </span>
             </Link>
-            <DropdownMenu>
+            <div className="flex items-center gap-1">
+              <GlobalSearch variant="icon" />
+              <DropdownMenu>
               <DropdownMenuTrigger className="h-8 w-8 rounded-full p-0 outline-none">
                 <Avatar className="h-8 w-8">
                   <AvatarFallback className="text-xs bg-primary/15 text-primary font-semibold">
@@ -282,6 +286,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            </div>
           </div>
         </header>
 
