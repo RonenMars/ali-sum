@@ -1,10 +1,11 @@
 "use client";
 
-import { ExternalLink } from "lucide-react";
-
 import { formatAmount } from "@/lib/format";
 import { getShippingStatus } from "@/lib/shipping-status";
-import { aliOrderDetailUrl, ALI_ORDER_LINK_PROPS } from "@/lib/order-url";
+import {
+  OpenOrderLink,
+  useOpenOrder,
+} from "@/components/order-detail/open-order-link";
 import {
   Table,
   TableBody,
@@ -38,6 +39,8 @@ export interface OrdersTableOrder {
  * and opens the AliExpress detail page in a new tab.
  */
 export function OrdersTable({ orders }: { orders: OrdersTableOrder[] }) {
+  const openOrder = useOpenOrder();
+
   if (orders.length === 0) {
     return (
       <p className="py-12 text-center text-sm text-muted-foreground">
@@ -55,17 +58,15 @@ export function OrdersTable({ orders }: { orders: OrdersTableOrder[] }) {
           const firstItem = order.items[0];
           return (
             <li key={order.id}>
-              <a
-                href={aliOrderDetailUrl(order.aliOrderId)}
-                {...ALI_ORDER_LINK_PROPS}
+              <OpenOrderLink
+                orderId={order.id}
+                aliOrderId={order.aliOrderId}
                 className="flex flex-col gap-2 px-1 py-3 transition-colors hover:bg-card/50 focus-visible:bg-card/60 focus-visible:outline-none"
-                aria-label={`Open order ${order.aliOrderId} on AliExpress`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <p className="flex items-center gap-1 truncate font-mono text-xs font-medium text-primary">
+                    <p className="truncate font-mono text-xs font-medium text-primary">
                       {order.aliOrderId}
-                      <ExternalLink className="size-3 opacity-60" aria-hidden />
                     </p>
                     <p className="text-[11px] text-muted-foreground">
                       {new Date(order.orderDate).toLocaleDateString()}
@@ -120,7 +121,7 @@ export function OrdersTable({ orders }: { orders: OrdersTableOrder[] }) {
                     )}
                   </p>
                 )}
-              </a>
+              </OpenOrderLink>
             </li>
           );
         })}
@@ -147,35 +148,22 @@ export function OrdersTable({ orders }: { orders: OrdersTableOrder[] }) {
                 <TableRow
                   key={order.id}
                   className="cursor-pointer hover:bg-card/60"
-                  onClick={() =>
-                    window.open(
-                      aliOrderDetailUrl(order.aliOrderId),
-                      "_blank",
-                      "noopener,noreferrer"
-                    )
-                  }
+                  onClick={() => openOrder(order.id)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
-                      window.open(
-                        aliOrderDetailUrl(order.aliOrderId),
-                        "_blank",
-                        "noopener,noreferrer"
-                      );
+                      openOrder(order.id);
                     }
                   }}
                   role="link"
                   tabIndex={0}
-                  aria-label={`Open order ${order.aliOrderId} on AliExpress`}
+                  aria-label={`Open order ${order.aliOrderId}`}
                 >
                   <TableCell>
                     {new Date(order.orderDate).toLocaleDateString()}
                   </TableCell>
                   <TableCell className="font-mono text-xs text-primary">
-                    <span className="inline-flex items-center gap-1">
-                      {order.aliOrderId}
-                      <ExternalLink className="size-3 opacity-60" aria-hidden />
-                    </span>
+                    {order.aliOrderId}
                   </TableCell>
                   <TableCell>{order.sellerName || "—"}</TableCell>
                   <TableCell className="max-w-[280px]">

@@ -1,10 +1,12 @@
 "use client";
 
 import { Fragment, useState } from "react";
-import { ExternalLink } from "lucide-react";
 import { formatAmount } from "@/lib/format";
 import { getShippingStatus } from "@/lib/shipping-status";
-import { aliOrderDetailUrl, ALI_ORDER_LINK_PROPS } from "@/lib/order-url";
+import {
+  OpenOrderLink,
+  useOpenOrder,
+} from "@/components/order-detail/open-order-link";
 import {
   Table,
   TableBody,
@@ -13,10 +15,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-
-function openOrder(aliOrderId: string) {
-  window.open(aliOrderDetailUrl(aliOrderId), "_blank", "noopener,noreferrer");
-}
 
 interface OrderItem {
   id: string;
@@ -95,6 +93,7 @@ function groupByTracking(orders: Order[]): {
 
 export function PackageTable({ orders }: { orders: Order[] }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const openOrder = useOpenOrder();
   const { packages, ungrouped } = groupByTracking(orders);
 
   const toggle = (trackingNumber: string) => {
@@ -167,16 +166,14 @@ export function PackageTable({ orders }: { orders: Order[] }) {
                 <ul className="flex flex-col gap-2 rounded-md bg-muted/30 p-2">
                   {pkg.orders.map((order) => (
                     <li key={order.id}>
-                      <a
-                        href={aliOrderDetailUrl(order.aliOrderId)}
-                        {...ALI_ORDER_LINK_PROPS}
+                      <OpenOrderLink
+                        orderId={order.id}
+                        aliOrderId={order.aliOrderId}
                         className="flex flex-col gap-2 rounded-md p-2 transition-colors hover:bg-card focus-visible:bg-card focus-visible:outline-none"
-                        aria-label={`Open order ${order.aliOrderId} on AliExpress`}
                       >
                         <div className="flex items-start justify-between gap-2">
-                          <span className="inline-flex items-center gap-1 truncate font-mono text-xs text-primary">
+                          <span className="truncate font-mono text-xs text-primary">
                             {order.aliOrderId}
-                            <ExternalLink className="size-3 opacity-60" aria-hidden />
                           </span>
                           <span className="text-xs font-medium tabular-nums">
                             {formatAmount(order.totalAmount, order.currency)}
@@ -208,7 +205,7 @@ export function PackageTable({ orders }: { orders: Order[] }) {
                             </span>
                           </div>
                         ))}
-                      </a>
+                      </OpenOrderLink>
                     </li>
                   ))}
                 </ul>
@@ -228,16 +225,14 @@ export function PackageTable({ orders }: { orders: Order[] }) {
           const firstItem = order.items[0];
           return (
             <li key={order.id}>
-              <a
-                href={aliOrderDetailUrl(order.aliOrderId)}
-                {...ALI_ORDER_LINK_PROPS}
+              <OpenOrderLink
+                orderId={order.id}
+                aliOrderId={order.aliOrderId}
                 className="flex flex-col gap-2 py-3 transition-colors hover:bg-card/50 focus-visible:bg-card/60 focus-visible:outline-none"
-                aria-label={`Open order ${order.aliOrderId} on AliExpress`}
               >
                 <div className="flex items-start justify-between gap-3">
-                  <span className="inline-flex items-center gap-1 truncate font-mono text-xs text-primary">
+                  <span className="truncate font-mono text-xs text-primary">
                     {order.aliOrderId}
-                    <ExternalLink className="size-3 opacity-60" aria-hidden />
                   </span>
                   <span className="text-sm font-medium tabular-nums">
                     {formatAmount(order.totalAmount, order.currency)}
@@ -270,7 +265,7 @@ export function PackageTable({ orders }: { orders: Order[] }) {
                     </span>
                   )}
                 </div>
-              </a>
+              </OpenOrderLink>
             </li>
           );
         })}
@@ -337,23 +332,20 @@ export function PackageTable({ orders }: { orders: Order[] }) {
                       tabIndex={0}
                       onClick={(e) => {
                         e.stopPropagation();
-                        openOrder(order.aliOrderId);
+                        openOrder(order.id);
                       }}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
                           e.stopPropagation();
-                          openOrder(order.aliOrderId);
+                          openOrder(order.id);
                         }
                       }}
-                      aria-label={`Open order ${order.aliOrderId} on AliExpress`}
+                      aria-label={`Open order ${order.aliOrderId}`}
                     >
                       <TableCell></TableCell>
                       <TableCell className="font-mono text-xs text-primary" colSpan={2}>
-                        <span className="inline-flex items-center gap-1">
-                          {order.aliOrderId}
-                          <ExternalLink className="size-3 opacity-60" aria-hidden />
-                        </span>
+                        {order.aliOrderId}
                         <span className="ml-2 text-muted-foreground">
                           {new Date(order.orderDate).toLocaleDateString()}
                         </span>
@@ -419,21 +411,18 @@ export function PackageTable({ orders }: { orders: Order[] }) {
               className="cursor-pointer hover:bg-card/60"
               role="link"
               tabIndex={0}
-              onClick={() => openOrder(order.aliOrderId)}
+              onClick={() => openOrder(order.id)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
-                  openOrder(order.aliOrderId);
+                  openOrder(order.id);
                 }
               }}
-              aria-label={`Open order ${order.aliOrderId} on AliExpress`}
+              aria-label={`Open order ${order.aliOrderId}`}
             >
               <TableCell></TableCell>
               <TableCell className="font-mono text-xs text-primary">
-                <span className="inline-flex items-center gap-1">
-                  {order.aliOrderId}
-                  <ExternalLink className="size-3 opacity-60" aria-hidden />
-                </span>
+                {order.aliOrderId}
               </TableCell>
               <TableCell className="text-xs text-muted-foreground">
                 {order.sellerName || "—"}

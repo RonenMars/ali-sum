@@ -3,7 +3,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import { formatAmount } from "@/lib/format";
 import { getShippingStatus } from "@/lib/shipping-status";
-import { aliOrderDetailUrl, ALI_ORDER_LINK_PROPS } from "@/lib/order-url";
+import { OpenOrderLink } from "@/components/order-detail/open-order-link";
 
 export interface RecentOrderItem {
   id: string;
@@ -52,11 +52,10 @@ export function RecentOrdersList({ orders, className }: RecentOrdersListProps) {
 
         return (
           <li key={order.id}>
-            <a
-              href={aliOrderDetailUrl(order.aliOrderId)}
-              {...ALI_ORDER_LINK_PROPS}
+            <OpenOrderLink
+              orderId={order.id}
+              aliOrderId={order.aliOrderId}
               className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-card/50 focus-visible:bg-card/60 focus-visible:outline-none"
-              aria-label={`Open order ${order.aliOrderId} on AliExpress`}
             >
               <div className="relative size-12 shrink-0 overflow-hidden rounded border border-border bg-background">
                 {firstItem?.imageUrl ? (
@@ -103,7 +102,7 @@ export function RecentOrdersList({ orders, className }: RecentOrdersListProps) {
                   #{order.aliOrderId.slice(-6)}
                 </p>
               </div>
-            </a>
+            </OpenOrderLink>
           </li>
         );
       })}

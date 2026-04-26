@@ -1,7 +1,9 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { OrderDetailDrawer } from "@/components/order-detail/order-detail-drawer";
 
 export default async function DashboardLayout({
   children,
@@ -19,5 +21,12 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  return <DashboardShell user={session.user}>{children}</DashboardShell>;
+  return (
+    <DashboardShell user={session.user}>
+      {children}
+      <Suspense>
+        <OrderDetailDrawer />
+      </Suspense>
+    </DashboardShell>
+  );
 }
