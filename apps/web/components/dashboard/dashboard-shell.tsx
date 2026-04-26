@@ -12,7 +12,6 @@ import {
   Settings2,
   LogOut,
   ShoppingCart,
-  Search,
   Bell,
   HelpCircle,
 } from "lucide-react";
@@ -210,17 +209,6 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
       <div className="flex-1 min-w-0 md:pl-60">
         {/* Desktop topbar */}
         <header className="hidden md:flex sticky top-0 z-40 h-14 items-center gap-4 border-b border-border bg-card/80 px-6 backdrop-blur supports-[backdrop-filter]:bg-card/60">
-          <div className="relative flex-1 max-w-md">
-            <Search
-              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-              aria-hidden
-            />
-            <input
-              type="search"
-              placeholder="Search orders, sellers, tracking…"
-              className="h-9 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors focus-visible:border-primary/60 focus-visible:ring-2 focus-visible:ring-primary/20"
-            />
-          </div>
           <div className="ml-auto flex items-center gap-1.5">
             <button
               type="button"
