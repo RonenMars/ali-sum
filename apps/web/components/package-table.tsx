@@ -1,8 +1,10 @@
 "use client";
 
 import { Fragment, useState } from "react";
+import { ExternalLink } from "lucide-react";
 import { formatAmount } from "@/lib/format";
 import { getShippingStatus } from "@/lib/shipping-status";
+import { aliOrderDetailUrl, ALI_ORDER_LINK_PROPS } from "@/lib/order-url";
 import {
   Table,
   TableBody,
@@ -11,6 +13,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
+function openOrder(aliOrderId: string) {
+  window.open(aliOrderDetailUrl(aliOrderId), "_blank", "noopener,noreferrer");
+}
 
 interface OrderItem {
   id: string;
@@ -158,48 +164,51 @@ export function PackageTable({ orders }: { orders: Order[] }) {
               </div>
 
               {isOpen && (
-                <ul className="flex flex-col gap-3 rounded-md bg-muted/30 p-3">
+                <ul className="flex flex-col gap-2 rounded-md bg-muted/30 p-2">
                   {pkg.orders.map((order) => (
-                    <li key={order.id} className="flex flex-col gap-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <a
-                          href={`https://www.aliexpress.com/p/order/detail.html?orderId=${order.aliOrderId}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="truncate font-mono text-xs text-primary hover:underline"
-                        >
-                          {order.aliOrderId}
-                        </a>
-                        <span className="text-xs font-medium tabular-nums">
-                          {formatAmount(order.totalAmount, order.currency)}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground">
-                        {new Date(order.orderDate).toLocaleDateString()}
-                        {order.sellerName ? ` · ${order.sellerName}` : ""}
-                      </p>
-                      {order.items.map((item) => (
-                        <div key={item.id} className="flex items-center gap-2">
-                          {item.imageUrl && (
-                            <img
-                              src={item.imageUrl}
-                              alt=""
-                              className="size-7 shrink-0 rounded object-cover"
-                            />
-                          )}
-                          <span className="min-w-0 flex-1 truncate text-xs" title={item.title}>
-                            {item.title}
-                            {item.quantity > 1 && (
-                              <span className="ml-1 text-[10px] text-muted-foreground">
-                                x{item.quantity}
-                              </span>
-                            )}
+                    <li key={order.id}>
+                      <a
+                        href={aliOrderDetailUrl(order.aliOrderId)}
+                        {...ALI_ORDER_LINK_PROPS}
+                        className="flex flex-col gap-2 rounded-md p-2 transition-colors hover:bg-card focus-visible:bg-card focus-visible:outline-none"
+                        aria-label={`Open order ${order.aliOrderId} on AliExpress`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="inline-flex items-center gap-1 truncate font-mono text-xs text-primary">
+                            {order.aliOrderId}
+                            <ExternalLink className="size-3 opacity-60" aria-hidden />
                           </span>
-                          <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">
-                            {formatAmount(item.price, order.currency)}
+                          <span className="text-xs font-medium tabular-nums">
+                            {formatAmount(order.totalAmount, order.currency)}
                           </span>
                         </div>
-                      ))}
+                        <p className="text-[11px] text-muted-foreground">
+                          {new Date(order.orderDate).toLocaleDateString()}
+                          {order.sellerName ? ` · ${order.sellerName}` : ""}
+                        </p>
+                        {order.items.map((item) => (
+                          <div key={item.id} className="flex items-center gap-2">
+                            {item.imageUrl && (
+                              <img
+                                src={item.imageUrl}
+                                alt=""
+                                className="size-7 shrink-0 rounded object-cover"
+                              />
+                            )}
+                            <span className="min-w-0 flex-1 truncate text-xs" title={item.title}>
+                              {item.title}
+                              {item.quantity > 1 && (
+                                <span className="ml-1 text-[10px] text-muted-foreground">
+                                  x{item.quantity}
+                                </span>
+                              )}
+                            </span>
+                            <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">
+                              {formatAmount(item.price, order.currency)}
+                            </span>
+                          </div>
+                        ))}
+                      </a>
                     </li>
                   ))}
                 </ul>
@@ -218,47 +227,50 @@ export function PackageTable({ orders }: { orders: Order[] }) {
           const statusInfo = getShippingStatus(order.status);
           const firstItem = order.items[0];
           return (
-            <li key={order.id} className="flex flex-col gap-2 py-3">
-              <div className="flex items-start justify-between gap-3">
-                <a
-                  href={`https://www.aliexpress.com/p/order/detail.html?orderId=${order.aliOrderId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="truncate font-mono text-xs text-primary hover:underline"
-                >
-                  {order.aliOrderId}
-                </a>
-                <span className="text-sm font-medium tabular-nums">
-                  {formatAmount(order.totalAmount, order.currency)}
-                </span>
-              </div>
-              {firstItem && (
-                <div className="flex items-center gap-2">
-                  {firstItem.imageUrl && (
-                    <img
-                      src={firstItem.imageUrl}
-                      alt=""
-                      className="size-8 shrink-0 rounded object-cover"
-                    />
-                  )}
-                  <span className="truncate text-xs" title={firstItem.title}>
-                    {firstItem.title}
+            <li key={order.id}>
+              <a
+                href={aliOrderDetailUrl(order.aliOrderId)}
+                {...ALI_ORDER_LINK_PROPS}
+                className="flex flex-col gap-2 py-3 transition-colors hover:bg-card/50 focus-visible:bg-card/60 focus-visible:outline-none"
+                aria-label={`Open order ${order.aliOrderId} on AliExpress`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <span className="inline-flex items-center gap-1 truncate font-mono text-xs text-primary">
+                    {order.aliOrderId}
+                    <ExternalLink className="size-3 opacity-60" aria-hidden />
+                  </span>
+                  <span className="text-sm font-medium tabular-nums">
+                    {formatAmount(order.totalAmount, order.currency)}
                   </span>
                 </div>
-              )}
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
-                <span
-                  className={`inline-flex h-5 items-center rounded-full px-2 text-[11px] font-medium ${statusInfo.className}`}
-                >
-                  {statusInfo.label}
-                </span>
-                {order.sellerName && <span className="truncate">{order.sellerName}</span>}
-                {order.estimatedDelivery && (
-                  <span>
-                    ETA {new Date(order.estimatedDelivery).toLocaleDateString()}
-                  </span>
+                {firstItem && (
+                  <div className="flex items-center gap-2">
+                    {firstItem.imageUrl && (
+                      <img
+                        src={firstItem.imageUrl}
+                        alt=""
+                        className="size-8 shrink-0 rounded object-cover"
+                      />
+                    )}
+                    <span className="truncate text-xs" title={firstItem.title}>
+                      {firstItem.title}
+                    </span>
+                  </div>
                 )}
-              </div>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+                  <span
+                    className={`inline-flex h-5 items-center rounded-full px-2 text-[11px] font-medium ${statusInfo.className}`}
+                  >
+                    {statusInfo.label}
+                  </span>
+                  {order.sellerName && <span className="truncate">{order.sellerName}</span>}
+                  {order.estimatedDelivery && (
+                    <span>
+                      ETA {new Date(order.estimatedDelivery).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
+              </a>
             </li>
           );
         })}
@@ -319,17 +331,29 @@ export function PackageTable({ orders }: { orders: Order[] }) {
               {isOpen &&
                 pkg.orders.map((order) => (
                   <Fragment key={order.id}>
-                    <TableRow className="bg-muted/30">
+                    <TableRow
+                      className="cursor-pointer bg-muted/30 hover:bg-muted/60"
+                      role="link"
+                      tabIndex={0}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openOrder(order.aliOrderId);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          openOrder(order.aliOrderId);
+                        }
+                      }}
+                      aria-label={`Open order ${order.aliOrderId} on AliExpress`}
+                    >
                       <TableCell></TableCell>
-                      <TableCell className="font-mono text-xs" colSpan={2}>
-                        <a
-                          href={`https://www.aliexpress.com/p/order/detail.html?orderId=${order.aliOrderId}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="hover:underline text-primary"
-                        >
+                      <TableCell className="font-mono text-xs text-primary" colSpan={2}>
+                        <span className="inline-flex items-center gap-1">
                           {order.aliOrderId}
-                        </a>
+                          <ExternalLink className="size-3 opacity-60" aria-hidden />
+                        </span>
                         <span className="ml-2 text-muted-foreground">
                           {new Date(order.orderDate).toLocaleDateString()}
                         </span>
@@ -390,17 +414,26 @@ export function PackageTable({ orders }: { orders: Order[] }) {
         {ungrouped.map((order) => {
           const statusInfo = getShippingStatus(order.status);
           return (
-            <TableRow key={order.id}>
+            <TableRow
+              key={order.id}
+              className="cursor-pointer hover:bg-card/60"
+              role="link"
+              tabIndex={0}
+              onClick={() => openOrder(order.aliOrderId)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  openOrder(order.aliOrderId);
+                }
+              }}
+              aria-label={`Open order ${order.aliOrderId} on AliExpress`}
+            >
               <TableCell></TableCell>
-              <TableCell className="font-mono text-xs">
-                <a
-                  href={`https://www.aliexpress.com/p/order/detail.html?orderId=${order.aliOrderId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:underline text-primary"
-                >
+              <TableCell className="font-mono text-xs text-primary">
+                <span className="inline-flex items-center gap-1">
                   {order.aliOrderId}
-                </a>
+                  <ExternalLink className="size-3 opacity-60" aria-hidden />
+                </span>
               </TableCell>
               <TableCell className="text-xs text-muted-foreground">
                 {order.sellerName || "—"}

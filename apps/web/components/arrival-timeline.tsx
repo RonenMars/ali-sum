@@ -2,6 +2,7 @@
 
 import { formatAmount } from "@/lib/format";
 import { getShippingStatus } from "@/lib/shipping-status";
+import { aliOrderDetailUrl, ALI_ORDER_LINK_PROPS } from "@/lib/order-url";
 
 interface TimelineItem {
   id: string;
@@ -112,9 +113,12 @@ export function ArrivalTimeline({ orders }: { orders: TimelineOrder[] }) {
                 {dateOrders.map((order) => {
                   const statusInfo = getShippingStatus(order.status);
                   return (
-                    <div
+                    <a
                       key={order.id}
-                      className="rounded-lg border bg-card p-3 flex items-start gap-3"
+                      href={aliOrderDetailUrl(order.aliOrderId)}
+                      {...ALI_ORDER_LINK_PROPS}
+                      className="flex items-start gap-3 rounded-lg border bg-card p-3 transition-colors hover:border-primary/40 hover:bg-card/70 focus-visible:border-primary focus-visible:outline-none"
+                      aria-label={`Open order ${order.aliOrderId} on AliExpress`}
                     >
                       {/* Product images stack */}
                       <div className="flex -space-x-2 shrink-0">
@@ -167,7 +171,7 @@ export function ArrivalTimeline({ orders }: { orders: TimelineOrder[] }) {
                       <p className="text-xs font-medium whitespace-nowrap shrink-0">
                         {formatAmount(order.totalAmount, order.currency)}
                       </p>
-                    </div>
+                    </a>
                   );
                 })}
               </div>
