@@ -2,6 +2,7 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 import { Sparkline } from "@/components/ui/sparkline";
+import { BarSparkline } from "@/components/ui/bar-sparkline";
 import { MetricDelta, type DeltaTone } from "@/components/ui/metric-delta";
 
 interface KpiCardProps {
@@ -9,16 +10,20 @@ interface KpiCardProps {
   value: React.ReactNode;
   delta?: { label: string; tone?: DeltaTone };
   sparkline?: number[];
-  /** Hero variant — bigger number, violet glow halo behind it, gradient sparkline. */
+  /** Hero variant — bigger number with violet glow halo and bar-style sparkline. */
   variant?: "default" | "hero";
   className?: string;
 }
 
 /**
- * Editorial-style KPI tile: eyebrow label, giant tabular-nums number,
- * optional delta chip, and a full-bleed sparkline at the bottom edge.
- * The `hero` variant adds a soft violet halo behind the number and uses
- * a violet→magenta gradient sparkline for the primary metric.
+ * Editorial KPI tile.
+ *
+ * `default` — compact tile with eyebrow, large number, and a baseline-aligned
+ * delta chip. No sparkline by default.
+ *
+ * `hero` — promoted tile used for the lead metric: violet text-glow, delta
+ * chip pinned to the top-right, full-bleed bar sparkline at the bottom, and
+ * a soft decorative gradient glow in the bottom-right corner.
  */
 export function KpiCard({
   eyebrow,
@@ -28,59 +33,100 @@ export function KpiCard({
   variant = "default",
   className,
 }: KpiCardProps) {
-  const isHero = variant === "hero";
+  if (variant === "hero") {
+    return (
+      <div
+        data-variant="hero"
+        className={cn(
+          "group relative flex h-full flex-col justify-between overflow-hidden rounded-xl border border-border bg-card p-6 transition-colors duration-200",
+          className
+        )}
+      >
+        <div className="relative z-10 flex flex-col gap-5">
+          <div className="flex items-center justify-between gap-3">
+            <span className="font-display text-[10px] font-medium uppercase tracking-[0.22em] text-muted-foreground">
+              {eyebrow}
+            </span>
+            {delta && (
+              <MetricDelta
+                label={delta.label}
+                tone={delta.tone}
+                className="px-2 py-0.5 text-[11px] font-bold"
+              />
+            )}
+          </div>
+          <h3 className="font-display text-4xl font-bold tracking-tight text-primary text-violet-glow lg:text-5xl">
+            {value}
+          </h3>
+        </div>
+
+        {sparkline && sparkline.length > 1 && (
+          <div className="relative z-10 mt-6">
+            <BarSparkline data={sparkline} height={88} />
+          </div>
+        )}
+
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-16 -bottom-16 size-64 rounded-full bg-primary/10 blur-[80px]"
+        />
+      </div>
+    );
+  }
 
   return (
     <div
       data-variant={variant}
       className={cn(
-        "relative flex flex-col overflow-hidden rounded-xl border border-border bg-card",
-        "transition-colors hover:bg-card/80",
+        "relative flex h-full flex-col justify-between overflow-hidden rounded-xl border border-border bg-card p-5 transition-colors duration-150 hover:border-border/80",
         className
       )}
     >
-      {isHero && (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -top-12 left-6 size-44 rounded-full bg-[color:var(--accent-soft)] blur-3xl opacity-80"
-        />
-      )}
+      <span className="font-display text-[10px] font-medium uppercase tracking-[0.22em] text-muted-foreground">
+        {eyebrow}
+      </span>
 
-      <div className={cn("relative flex flex-col gap-3", isHero ? "p-5" : "p-4")}>
-        <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-          {eyebrow}
+      <div className="mt-2 flex items-baseline justify-between gap-3">
+        <span className="font-display text-2xl font-bold tabular-nums tracking-tight text-foreground lg:text-[28px]">
+          {value}
         </span>
-        <div className="flex items-baseline gap-3">
-          <span
-            className={cn(
-              "font-heading font-semibold tabular-nums tracking-tight",
-              isHero
-                ? "text-4xl text-primary lg:text-[44px] lg:leading-[1.05]"
-                : "text-2xl lg:text-3xl"
-            )}
-          >
-            {value}
-          </span>
-          {delta && <MetricDelta label={delta.label} tone={delta.tone} />}
-        </div>
+        {delta ? (
+          <DeltaText tone={delta.tone}>{delta.label}</DeltaText>
+        ) : null}
       </div>
 
       {sparkline && sparkline.length > 1 && (
-        <div className="-mt-1 h-10 w-full px-1 pb-1">
+        <div className="-mx-1 -mb-1 mt-4 h-8 w-[calc(100%+0.5rem)]">
           <Sparkline
             data={sparkline}
-            height={40}
-            strokeWidth={isHero ? 2 : 1.5}
-            gradient={
-              isHero
-                ? { from: "var(--primary)", to: "var(--magenta)" }
-                : undefined
-            }
-            stroke={isHero ? undefined : "var(--muted-foreground)"}
-            className={isHero ? "" : "opacity-70"}
+            height={32}
+            strokeWidth={1.5}
+            stroke="var(--muted-foreground)"
+            className="opacity-60"
           />
         </div>
       )}
     </div>
+  );
+}
+
+function DeltaText({
+  children,
+  tone = "neutral",
+}: {
+  children: React.ReactNode;
+  tone?: DeltaTone;
+}) {
+  return (
+    <span
+      className={cn(
+        "text-xs font-bold tabular-nums",
+        tone === "positive" && "text-[color:var(--positive)]",
+        tone === "negative" && "text-destructive",
+        tone === "neutral" && "text-muted-foreground"
+      )}
+    >
+      {children}
+    </span>
   );
 }

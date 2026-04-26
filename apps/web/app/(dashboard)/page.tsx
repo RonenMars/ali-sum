@@ -5,14 +5,16 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { SummaryCards } from "@/components/charts/summary-cards";
 import { SpendingChart } from "@/components/charts/spending-chart";
-import { SellersChart } from "@/components/charts/sellers-chart";
-import { ShippingStatusChart } from "@/components/charts/shipping-status-chart";
 import { getShippingStatus } from "@/lib/shipping-status";
 import { DateRangeFilter } from "@/components/date-range-filter";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatAmount } from "@/lib/format";
+import { DashboardGreeting } from "@/components/dashboard/dashboard-greeting";
+import { ShippingStatusOverview } from "@/components/dashboard/shipping-status-overview";
+import { RecentOrdersList } from "@/components/dashboard/recent-orders-list";
+import { SellerRow } from "@/components/ui/seller-row";
 import { LoadMoreButton } from "@/components/load-more-button";
 import { ResetRecentLimit } from "@/components/reset-recent-limit";
+import { formatAmount } from "@/lib/format";
+import Link from "next/link";
 
 function parseDateRange(from?: string, to?: string) {
   const fromDate = from ? new Date(from) : undefined;
@@ -29,9 +31,12 @@ async function getSummary(userId: string, fromDate?: Date, toDate?: Date) {
     ...(fromDate && { gte: fromDate }),
     ...(toDate && { lt: toDate }),
   };
-  const where = { userId, ...(Object.keys(dateFilter).length && { orderDate: dateFilter }) };
+  const where = {
+    userId,
+    ...(Object.keys(dateFilter).length && { orderDate: dateFilter }),
+  };
 
-  const [orderAgg, itemCount] = await Promise.all([
+  const [orderAgg, itemCount, sellerGroups] = await Promise.all([
     prisma.order.aggregate({
       where,
       _sum: { totalAmount: true },
@@ -39,6 +44,11 @@ async function getSummary(userId: string, fromDate?: Date, toDate?: Date) {
       _count: true,
     }),
     prisma.orderItem.count({ where: { order: where } }),
+    prisma.order.groupBy({
+      by: ["sellerName"],
+      where: { ...where, sellerName: { not: null } },
+      _count: true,
+    }),
   ]);
 
   return {
@@ -46,15 +56,23 @@ async function getSummary(userId: string, fromDate?: Date, toDate?: Date) {
     totalOrders: orderAgg._count,
     avgOrderValue: orderAgg._avg.totalAmount || 0,
     totalItems: itemCount,
+    uniqueSellers: sellerGroups.length,
   };
 }
 
-async function getSpendingSeries(userId: string, fromDate?: Date, toDate?: Date) {
+async function getSpendingSeries(
+  userId: string,
+  fromDate?: Date,
+  toDate?: Date
+) {
   const dateFilter = {
     ...(fromDate && { gte: fromDate }),
     ...(toDate && { lt: toDate }),
   };
-  const where = { userId, ...(Object.keys(dateFilter).length && { orderDate: dateFilter }) };
+  const where = {
+    userId,
+    ...(Object.keys(dateFilter).length && { orderDate: dateFilter }),
+  };
 
   const orders = await prisma.order.findMany({
     where,
@@ -79,12 +97,20 @@ async function getSpendingSeries(userId: string, fromDate?: Date, toDate?: Date)
   }));
 }
 
-async function getTopSellers(userId: string, fromDate?: Date, toDate?: Date) {
+async function getTopSellers(
+  userId: string,
+  fromDate?: Date,
+  toDate?: Date
+) {
   const dateFilter = {
     ...(fromDate && { gte: fromDate }),
     ...(toDate && { lt: toDate }),
   };
-  const where = { userId, sellerName: { not: null }, ...(Object.keys(dateFilter).length && { orderDate: dateFilter }) };
+  const where = {
+    userId,
+    sellerName: { not: null },
+    ...(Object.keys(dateFilter).length && { orderDate: dateFilter }),
+  };
 
   const sellers = await prisma.order.groupBy({
     by: ["sellerName"],
@@ -102,12 +128,19 @@ async function getTopSellers(userId: string, fromDate?: Date, toDate?: Date) {
   }));
 }
 
-async function getShippingStatusCounts(userId: string, fromDate?: Date, toDate?: Date) {
+async function getShippingStatusCounts(
+  userId: string,
+  fromDate?: Date,
+  toDate?: Date
+) {
   const dateFilter = {
     ...(fromDate && { gte: fromDate }),
     ...(toDate && { lt: toDate }),
   };
-  const where = { userId, ...(Object.keys(dateFilter).length && { orderDate: dateFilter }) };
+  const where = {
+    userId,
+    ...(Object.keys(dateFilter).length && { orderDate: dateFilter }),
+  };
 
   const orders = await prisma.order.findMany({
     where,
@@ -115,29 +148,54 @@ async function getShippingStatusCounts(userId: string, fromDate?: Date, toDate?:
   });
 
   const IN_TRANSIT_LABELS = ["Shipped", "In Transit", "Out for Delivery"];
-  let inTransit = 0, delivered = 0, pending = 0;
+  let inTransit = 0,
+    delivered = 0,
+    pending = 0,
+    processing = 0;
   for (const o of orders) {
     const label = getShippingStatus(o.status).label;
     if (IN_TRANSIT_LABELS.includes(label)) inTransit++;
     else if (label === "Delivered") delivered++;
-    else if (["Payment Pending", "Processing", "Payment Accepted"].includes(label)) pending++;
+    else if (["Payment Pending", "Payment Accepted"].includes(label)) pending++;
+    else if (label === "Processing") processing++;
   }
-  const other = orders.length - inTransit - delivered - pending;
+  const other = orders.length - inTransit - delivered - pending - processing;
 
-  return [
-    { label: "In Transit", count: inTransit },
-    { label: "Delivered", count: delivered },
-    { label: "Pending / Processing", count: pending },
-    ...(other > 0 ? [{ label: "Other", count: other }] : []),
-  ];
+  return {
+    total: orders.length,
+    segments: [
+      { key: "in-transit", label: "In Transit", count: inTransit, colorClass: "bg-primary" },
+      { key: "delivered", label: "Delivered", count: delivered, colorClass: "bg-[color:var(--positive)]" },
+      { key: "pending", label: "Pending", count: pending, colorClass: "bg-muted-foreground/40" },
+      { key: "processing", label: "Processing", count: processing, colorClass: "bg-[color:var(--info)]" },
+      ...(other > 0
+        ? [
+            {
+              key: "other",
+              label: "Other",
+              count: other,
+              colorClass: "bg-muted-foreground/30",
+            },
+          ]
+        : []),
+    ],
+  };
 }
 
-async function getRecentOrders(userId: string, fromDate?: Date, toDate?: Date, limit = 5) {
+async function getRecentOrders(
+  userId: string,
+  fromDate?: Date,
+  toDate?: Date,
+  limit = 5
+) {
   const dateFilter = {
     ...(fromDate && { gte: fromDate }),
     ...(toDate && { lt: toDate }),
   };
-  const where = { userId, ...(Object.keys(dateFilter).length && { orderDate: dateFilter }) };
+  const where = {
+    userId,
+    ...(Object.keys(dateFilter).length && { orderDate: dateFilter }),
+  };
 
   return prisma.order.findMany({
     where,
@@ -145,6 +203,21 @@ async function getRecentOrders(userId: string, fromDate?: Date, toDate?: Date, l
     orderBy: { orderDate: "desc" },
     take: limit,
   });
+}
+
+const rangeFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+});
+
+function formatRange(from?: string, to?: string) {
+  if (!from && !to) return "All time";
+  const fromLabel = from
+    ? rangeFormatter.format(new Date(from))
+    : "Earliest";
+  const toLabel = to ? rangeFormatter.format(new Date(to)) : "Today";
+  return `${fromLabel} – ${toLabel}`;
 }
 
 export default async function DashboardPage({
@@ -165,14 +238,19 @@ export default async function DashboardPage({
   const { fromDate, toDate } = parseDateRange(effectiveFrom, effectiveTo);
   const recentLimit = Math.max(5, parseInt(recentLimitParam || "5"));
 
-  const [summary, spending, sellers, shippingStatus, recentOrders, primaryOrder] = await Promise.all([
-    getSummary(userId, fromDate, toDate),
-    getSpendingSeries(userId, fromDate, toDate),
-    getTopSellers(userId, fromDate, toDate),
-    getShippingStatusCounts(userId, fromDate, toDate),
-    getRecentOrders(userId, fromDate, toDate, recentLimit),
-    prisma.order.findFirst({ where: { userId }, select: { currency: true }, orderBy: { orderDate: "desc" } }),
-  ]);
+  const [summary, spending, sellers, shippingStatus, recentOrders, primaryOrder] =
+    await Promise.all([
+      getSummary(userId, fromDate, toDate),
+      getSpendingSeries(userId, fromDate, toDate),
+      getTopSellers(userId, fromDate, toDate),
+      getShippingStatusCounts(userId, fromDate, toDate),
+      getRecentOrders(userId, fromDate, toDate, recentLimit),
+      prisma.order.findFirst({
+        where: { userId },
+        select: { currency: true },
+        orderBy: { orderDate: "desc" },
+      }),
+    ]);
   const primaryCurrency = primaryOrder?.currency ?? "USD";
 
   const loadMoreParams = new URLSearchParams();
@@ -181,187 +259,115 @@ export default async function DashboardPage({
   loadMoreParams.set("recentLimit", String(recentLimit + 5));
   const loadMoreHref = `/?${loadMoreParams.toString()}`;
 
+  const spendingTrend = spending.map((s) => s.amount);
+  const topSellerSpend = sellers[0]?.totalSpent ?? 0;
+  const firstName =
+    (session.user.name || session.user.email || "there").split(/[\s@]+/)[0] ||
+    "there";
+
   return (
     <div className="space-y-8">
       <Suspense>
         <ResetRecentLimit />
       </Suspense>
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground text-sm">
-            Your AliExpress spending overview
-          </p>
-        </div>
+
+      {/* Greeting + date filter */}
+      <div className="flex flex-col gap-6">
+        <DashboardGreeting
+          name={firstName}
+          rangeLabel={formatRange(effectiveFrom, effectiveTo)}
+        />
         <Suspense>
           <DateRangeFilter />
         </Suspense>
       </div>
 
-      <SummaryCards {...summary} currency={primaryCurrency} />
+      {/* KPI strip: hero + 2x2 mini grid */}
+      <SummaryCards {...summary} currency={primaryCurrency} spendingTrend={spendingTrend} />
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Spending Over Time</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <SpendingChart data={spending} currency={primaryCurrency} />
-          </CardContent>
-        </Card>
+      {/* Charts row: spending (8) + shipping (4) */}
+      <div className="grid grid-cols-12 gap-4 lg:gap-6">
+        <section className="col-span-12 overflow-hidden rounded-xl border border-border bg-card p-6 xl:col-span-8">
+          <header className="mb-6 flex items-center justify-between">
+            <h2 className="font-display text-lg font-semibold text-foreground">
+              Spending Trends
+            </h2>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="size-2 rounded-full bg-primary" />
+              Spend
+            </div>
+          </header>
+          <SpendingChart data={spending} currency={primaryCurrency} />
+        </section>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Top Sellers</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <SellersChart data={sellers} currency={primaryCurrency} />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Shipping Status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ShippingStatusChart data={shippingStatus} />
-          </CardContent>
-        </Card>
+        <section className="col-span-12 flex flex-col rounded-xl border border-border bg-card p-6 xl:col-span-4">
+          <header className="mb-2">
+            <h2 className="font-display text-lg font-semibold text-foreground">
+              Shipping Status
+            </h2>
+          </header>
+          <ShippingStatusOverview
+            total={shippingStatus.total}
+            segments={shippingStatus.segments}
+            detailHref="/shipping"
+          />
+        </section>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Recent Orders</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {recentOrders.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-8 text-center">
-              No orders yet. Install the Chrome extension and sync your AliExpress orders.
-            </p>
-          ) : (
-            <>
-            {/* Mobile: stacked card list */}
-            <ul className="flex flex-col divide-y divide-border md:hidden">
-              {recentOrders.map((order) => {
-                const firstItem = order.items[0];
-                return (
-                  <li key={order.id} className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <a
-                          href={`https://www.aliexpress.com/p/order/detail.html?orderId=${order.aliOrderId}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block truncate font-mono text-xs text-primary hover:underline"
-                        >
-                          {order.aliOrderId}
-                        </a>
-                        <p className="text-[11px] text-muted-foreground">
-                          {new Date(order.orderDate).toLocaleDateString()}
-                          {order.sellerName ? ` · ${order.sellerName}` : ""}
-                        </p>
-                      </div>
-                      <div className="text-right text-sm font-medium tabular-nums">
-                        {formatAmount(order.totalAmount, order.currency)}
-                      </div>
-                    </div>
-                    {firstItem && (
-                      <div className="flex items-center gap-2">
-                        {firstItem.imageUrl && (
-                          <img
-                            src={firstItem.imageUrl}
-                            alt=""
-                            className="size-8 shrink-0 rounded object-cover"
-                          />
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-xs" title={firstItem.title}>
-                            {firstItem.title}
-                          </p>
-                          {order.items.length > 1 && (
-                            <p className="text-[10px] text-muted-foreground">
-                              +{order.items.length - 1} more
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-
-            {/* Desktop: full table */}
-            <div className="hidden overflow-x-auto md:block">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b text-muted-foreground">
-                    <th className="text-left py-2 font-medium">Date</th>
-                    <th className="text-left py-2 font-medium">Order ID</th>
-                    <th className="text-left py-2 font-medium">Seller</th>
-                    <th className="text-left py-2 font-medium">Items</th>
-                    <th className="text-right py-2 font-medium">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentOrders.map((order) => (
-                    <tr key={order.id} className="border-b last:border-0">
-                      <td className="py-2">
-                        {new Date(order.orderDate).toLocaleDateString()}
-                      </td>
-                      <td className="py-2 font-mono text-xs">
-                        <a
-                          href={`https://www.aliexpress.com/p/order/detail.html?orderId=${order.aliOrderId}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="hover:underline text-primary"
-                        >
-                          {order.aliOrderId}
-                        </a>
-                      </td>
-                      <td className="py-2">{order.sellerName || "—"}</td>
-                      <td className="py-2 max-w-[220px]">
-                        {order.items.length > 0 ? (
-                          <div className="flex items-center gap-2">
-                            {order.items[0].imageUrl && (
-                              <img
-                                src={order.items[0].imageUrl}
-                                alt=""
-                                className="h-7 w-7 rounded object-cover shrink-0"
-                              />
-                            )}
-                            <div className="min-w-0">
-                              <p className="text-xs truncate" title={order.items[0].title}>
-                                {order.items[0].title}
-                              </p>
-                              {order.items.length > 1 && (
-                                <p className="text-[10px] text-muted-foreground">
-                                  +{order.items.length - 1} more
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </td>
-                      <td className="py-2 text-right font-medium">
-                        {formatAmount(order.totalAmount, order.currency)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {recentOrders.length >= recentLimit && recentLimit < summary.totalOrders && (
-              <div className="mt-4 flex justify-center">
+      {/* Lists row: recent orders (8) + top sellers (4) */}
+      <div className="grid grid-cols-12 gap-4 lg:gap-6">
+        <section className="col-span-12 overflow-hidden rounded-xl border border-border bg-card xl:col-span-8">
+          <header className="flex items-center justify-between border-b border-border px-6 py-5">
+            <h2 className="font-display text-lg font-semibold text-foreground">
+              Recent Orders
+            </h2>
+            <Link
+              href="/orders"
+              className="text-xs font-bold text-primary hover:text-primary/80"
+            >
+              View all
+            </Link>
+          </header>
+          <RecentOrdersList orders={recentOrders} />
+          {recentOrders.length >= recentLimit &&
+            recentLimit < summary.totalOrders && (
+              <div className="flex justify-center border-t border-border px-6 py-4">
                 <LoadMoreButton href={loadMoreHref} />
               </div>
             )}
-            </>
+        </section>
+
+        <section className="col-span-12 rounded-xl border border-border bg-card p-6 xl:col-span-4">
+          <header className="mb-6 flex items-center justify-between">
+            <h2 className="font-display text-lg font-semibold text-foreground">
+              Top Sellers
+            </h2>
+            <Link
+              href="/sellers"
+              className="text-xs font-bold text-primary hover:text-primary/80"
+            >
+              View all
+            </Link>
+          </header>
+          {sellers.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              No seller data yet.
+            </p>
+          ) : (
+            <ul className="space-y-4">
+              {sellers.map((s) => (
+                <li key={s.name}>
+                  <SellerRow
+                    name={s.name}
+                    total={formatAmount(s.totalSpent, primaryCurrency)}
+                    ratio={topSellerSpend > 0 ? s.totalSpent / topSellerSpend : 0}
+                  />
+                </li>
+              ))}
+            </ul>
           )}
-        </CardContent>
-      </Card>
+        </section>
+      </div>
     </div>
   );
 }
