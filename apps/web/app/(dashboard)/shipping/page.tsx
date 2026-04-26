@@ -184,38 +184,7 @@ export default async function ShippingPage({ searchParams }: PageProps) {
         />
       </Suspense>
 
-      {/* Charts */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Status Distribution</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ShippingStatusChart data={statusChartData} />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Delivery Timeline</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <DeliveryTimelineChart data={deliveryTimeline} />
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Arrival timeline */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Estimated Arrivals</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ArrivalTimeline orders={timelineOrders} />
-        </CardContent>
-      </Card>
-
-      {/* Filters + package table */}
+      {/* Filters + package table — primary actionable content */}
       <Card>
         <CardHeader className="flex-row items-center justify-between gap-4 flex-wrap">
           <CardTitle className="text-base">
@@ -257,6 +226,37 @@ export default async function ShippingPage({ searchParams }: PageProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Arrival timeline */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Estimated Arrivals</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ArrivalTimeline orders={timelineOrders} />
+        </CardContent>
+      </Card>
+
+      {/* Charts */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Status Distribution</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ShippingStatusChart data={statusChartData} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Delivery Timeline</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DeliveryTimelineChart data={deliveryTimeline} />
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
