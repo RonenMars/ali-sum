@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { PageHeader } from "@/components/ui/page-header";
-import { SegmentedFilter } from "@/components/ui/segmented-filter";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MetricDelta } from "@/components/ui/metric-delta";
 import {
@@ -14,101 +13,49 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { SpendingChart } from "@/components/charts/spending-chart";
-import {
-  DATE_FILTER_STORAGE_KEY,
-  DEFAULT_DATE_PRESET,
-  DATE_PRESETS,
-} from "@/lib/date-filter";
+import { DateRangeFilter } from "@/components/date-range-filter";
+import { getDefaultDateRange } from "@/lib/date-filter";
 
 type Period = "week" | "month" | "year";
 type SeriesItem = { period: string; amount: number; orderCount: number };
 
-const STORAGE_KEY = DATE_FILTER_STORAGE_KEY;
-const DEFAULT_PRESET = DEFAULT_DATE_PRESET;
-const PRESETS = DATE_PRESETS;
-const PRESET_OPTIONS = PRESETS.map((p) => ({ value: p.label, label: p.label }));
-
-const inputClass =
-  "h-8 rounded-lg border border-border bg-background px-2 text-sm tabular-nums outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
-
 export default function SpendingPage() {
+  return (
+    <Suspense>
+      <SpendingPageInner />
+    </Suspense>
+  );
+}
+
+function SpendingPageInner() {
+  const searchParams = useSearchParams();
+  const fallback = getDefaultDateRange();
+  const from = searchParams.get("from") ?? fallback.from;
+  const to = searchParams.get("to") ?? fallback.to;
+
   const [period, setPeriod] = useState<Period>("month");
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-  const [activePreset, setActivePreset] = useState<string | null>(null);
   const [data, setData] = useState<SeriesItem[]>([]);
   const [currency, setCurrency] = useState("USD");
   const [loading, setLoading] = useState(true);
 
-  // On mount: load from storage or apply default
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const { from: f, to: t } = JSON.parse(stored);
-        const matched = PRESETS.find((p) => {
-          const r = p.getRange();
-          return r.from === f && r.to === t;
-        });
-        setFrom(f || "");
-        setTo(t || "");
-        setActivePreset(matched?.label ?? null);
-        return;
-      }
-    } catch {}
-    const preset = PRESETS.find((p) => p.label === DEFAULT_PRESET)!;
-    const r = preset.getRange();
-    setFrom(r.from);
-    setTo(r.to);
-    setActivePreset(DEFAULT_PRESET);
-  }, []);
-
-  useEffect(() => {
-    if (from || to) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ from, to }));
-    }
-  }, [from, to]);
-
-  useEffect(() => {
-    if (!from && !to) return;
     setLoading(true);
     const params = new URLSearchParams({ period });
     if (from) params.set("from", from);
     if (to) params.set("to", to);
+    let cancelled = false;
     fetch(`/api/analytics/spending?${params.toString()}`)
       .then((r) => r.json())
       .then((d) => {
+        if (cancelled) return;
         setData(d.series || []);
         if (d.currency) setCurrency(d.currency);
         setLoading(false);
       });
+    return () => {
+      cancelled = true;
+    };
   }, [period, from, to]);
-
-  const applyPreset = (preset: (typeof PRESETS)[number]) => {
-    const r = preset.getRange();
-    setActivePreset(preset.label);
-    setFrom(r.from);
-    setTo(r.to);
-  };
-
-  const handlePresetChange = (label: string) => {
-    const preset = PRESETS.find((p) => p.label === label);
-    if (preset) applyPreset(preset);
-  };
-
-  const handleFromChange = (value: string) => {
-    setActivePreset(null);
-    setFrom(value);
-  };
-  const handleToChange = (value: string) => {
-    setActivePreset(null);
-    setTo(value);
-  };
-
-  const reset = () => {
-    const preset = PRESETS.find((p) => p.label === DEFAULT_PRESET)!;
-    applyPreset(preset);
-  };
 
   const formatMoney = useMemo(() => {
     const fmt = new Intl.NumberFormat("en-US", { style: "currency", currency });
@@ -130,51 +77,17 @@ export default function SpendingPage() {
 
   return (
     <div className="space-y-8">
-      <PageHeader
-        title="Spending"
-        subtitle="Track your spending patterns over time"
-        actions={
-          <div className="flex flex-col items-stretch gap-2 md:items-end">
-            <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
-              <SegmentedFilter
-                options={PRESET_OPTIONS}
-                value={activePreset ?? ""}
-                onChange={handlePresetChange}
-                className="whitespace-nowrap"
-              />
-            </div>
-            <div className="flex flex-wrap items-center justify-start gap-2 md:justify-end">
-              <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <span>From</span>
-                <input
-                  type="date"
-                  value={from}
-                  onChange={(e) => handleFromChange(e.target.value)}
-                  className={inputClass}
-                />
-              </label>
-              <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <span>To</span>
-                <input
-                  type="date"
-                  value={to}
-                  onChange={(e) => handleToChange(e.target.value)}
-                  className={inputClass}
-                />
-              </label>
-              {activePreset !== DEFAULT_PRESET && (
-                <button
-                  type="button"
-                  onClick={reset}
-                  className="text-xs text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  Reset
-                </button>
-              )}
-            </div>
-          </div>
-        }
-      />
+      <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">
+            Spending
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Track your spending patterns over time.
+          </p>
+        </div>
+        <DateRangeFilter />
+      </header>
 
       <section className="relative overflow-hidden rounded-xl border border-border bg-card">
         <div
@@ -188,11 +101,13 @@ export default function SpendingPage() {
                 Total Period Spend
               </span>
               <span className="font-mono text-4xl font-semibold tabular-nums tracking-tight text-primary md:text-[44px] md:leading-[1.05]">
-                {formatMoney(totalForPeriod)}
+                {loading && data.length === 0 ? "—" : formatMoney(totalForPeriod)}
               </span>
               <span className="text-sm text-muted-foreground">
                 <span className="tabular-nums text-foreground/80">
-                  {totalOrders.toLocaleString()}
+                  {loading && data.length === 0
+                    ? "—"
+                    : totalOrders.toLocaleString()}
                 </span>{" "}
                 {totalOrders === 1 ? "order" : "orders"}
               </span>
