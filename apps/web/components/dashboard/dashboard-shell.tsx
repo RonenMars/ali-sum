@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import {
   LayoutDashboard,
@@ -14,6 +14,7 @@ import {
   ShoppingCart,
   Bell,
   HelpCircle,
+  ChevronLeft,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -139,6 +140,8 @@ function SidebarLogo({ onClick }: { onClick?: () => void }) {
 
 export function DashboardShell({ user, children }: DashboardShellProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const showBack = pathname !== "/";
 
   const initials = (user.name || user.email || "U")
     .split(" ")
@@ -248,14 +251,26 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
         {/* Mobile header — logo + avatar dropdown only; nav is the bottom tab bar */}
         <header className="md:hidden sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur pt-[env(safe-area-inset-top)]">
           <div className="flex h-14 items-center justify-between px-4">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15 ring-1 ring-primary/30">
-                <ShoppingCart className="size-3.5 text-primary" />
-              </div>
-              <span className="font-bold tracking-tight text-base text-primary">
-                ali-sum
-              </span>
-            </Link>
+            <div className="flex items-center gap-1">
+              {showBack && (
+                <button
+                  type="button"
+                  onClick={() => router.back()}
+                  aria-label="Go back"
+                  className="-ml-1.5 flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-card hover:text-foreground active:scale-95"
+                >
+                  <ChevronLeft className="size-5" />
+                </button>
+              )}
+              <Link href="/" className="flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15 ring-1 ring-primary/30">
+                  <ShoppingCart className="size-3.5 text-primary" />
+                </div>
+                <span className="font-bold tracking-tight text-base text-primary">
+                  ali-sum
+                </span>
+              </Link>
+            </div>
             <div className="flex items-center gap-1">
               <GlobalSearch variant="icon" />
               <DropdownMenu>
@@ -290,7 +305,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
           </div>
         </header>
 
-        <main className="mx-auto max-w-7xl px-4 pt-6 pb-24 md:px-8 md:py-8">
+        <main className="mx-auto max-w-7xl px-4 pt-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:px-8 md:py-8">
           {children}
         </main>
       </div>

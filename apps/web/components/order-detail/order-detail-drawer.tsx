@@ -105,7 +105,8 @@ export function OrderDetailDrawer() {
       <aside
         className={cn(
           "absolute inset-x-0 bottom-0 top-0 flex flex-col bg-card shadow-2xl",
-          "md:left-auto md:right-0 md:w-full md:max-w-lg md:border-l md:border-border",
+          "pt-[env(safe-area-inset-top)]",
+          "md:left-auto md:right-0 md:w-full md:max-w-lg md:border-l md:border-border md:pt-0",
           "animate-in slide-in-from-right duration-200"
         )}
       >
@@ -128,7 +129,7 @@ export function OrderDetailDrawer() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-5 md:p-6">
+        <div className="flex-1 overflow-y-auto p-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] md:p-6 md:pb-6">
           {loading && <DrawerSkeleton />}
           {error && !loading && (
             <p className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
