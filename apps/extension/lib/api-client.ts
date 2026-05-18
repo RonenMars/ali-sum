@@ -22,6 +22,22 @@ export async function whoami(): Promise<{ id: string; email: string } | null> {
   return res.json();
 }
 
+export async function fetchWatermark(): Promise<{ aliOrderId: string; orderDate: string } | null> {
+  const [apiBase, token] = await Promise.all([getApiBase(), getToken()]);
+  if (!token) return null;
+
+  try {
+    const res = await fetch(`${apiBase}/api/orders/sync-watermark`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.aliOrderId ? data : null;
+  } catch {
+    return null;
+  }
+}
+
 const BATCH_SIZE = 50;
 
 export async function syncOrders(

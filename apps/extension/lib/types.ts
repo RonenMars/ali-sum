@@ -43,7 +43,7 @@ export interface SyncResult {
 }
 
 export type MessageType =
-  | { type: "START_SYNC" }
+  | { type: "START_SYNC"; fullSync?: boolean }
   | { type: "SYNC_PROGRESS"; progress: SyncProgress }
   | { type: "SCRAPE_ORDERS" }
   | { type: "SCRAPE_RESULT"; orders: ScrapedOrder[]; hasNextPage: boolean }

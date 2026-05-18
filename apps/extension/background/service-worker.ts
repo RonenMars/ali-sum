@@ -1,5 +1,7 @@
-import { syncOrders, getToken } from "../lib/api-client";
+import { syncOrders, getToken, fetchWatermark } from "../lib/api-client";
 import { SyncProgress, ScrapedOrder, TrackingDetail } from "../lib/types";
+
+let pendingFullSync = false;
 
 let currentProgress: SyncProgress = {
   status: "idle",
@@ -139,6 +141,9 @@ async function startSync() {
     broadcastProgress({ status: "syncing", currentPage: 1, totalPages: null, ordersFound: 0 });
 
     const tabId = await findOrOpenOrdersTab();
+    const watermark = pendingFullSync ? null : await fetchWatermark();
+    pendingFullSync = false;
+    let hitWatermark = false;
     const ordersById = new Map<string, ScrapedOrder>();
     let page = 1;
     let hasMore = true;
@@ -159,6 +164,11 @@ async function startSync() {
       const addedThisPage = ordersById.size - sizeBefore;
       hasMore = result.hasNextPage;
 
+      if (watermark && result.orders.some((o) => o.aliOrderId === watermark.aliOrderId)) {
+        hitWatermark = true;
+        break;
+      }
+
       if (!hasMore) break;
 
       // Random pause between pages (3–8s) to mimic reading/scrolling
@@ -178,12 +188,23 @@ async function startSync() {
       page++;
     }
 
+    if (watermark && !hitWatermark && page > MAX_PAGES) {
+      console.warn(
+        `[ali-sum] Watermark order ${watermark.aliOrderId} not seen after ${MAX_PAGES} pages — treating as full scan.`,
+      );
+    }
+
     const allOrders = Array.from(ordersById.values());
 
     // Enrich orders with tracking details by navigating to each order's
     // tracking page. Only orders that have a "Track order" link are visited.
+    // Orders at/before the watermark are terminal — skip them.
+    const wmDate = watermark ? new Date(watermark.orderDate).getTime() : 0;
     const ordersWithTracking = allOrders.filter(
-      (o) => o.trackingPageUrl && !o.trackingNumber,
+      (o) =>
+        o.trackingPageUrl &&
+        !o.trackingNumber &&
+        new Date(o.orderDate).getTime() > wmDate,
     );
 
     let captchaDetected = false;
@@ -250,11 +271,12 @@ async function startSync() {
     const captchaSuffix = captchaDetected
       ? " — CAPTCHA detected, some tracking info may be missing. Solve it in the browser and re-sync."
       : "";
+    const watermarkSuffix = hitWatermark ? " — stopped at last delivered order" : "";
     const message =
       created === 0 && skipped > 0
-        ? `Already up to date (${skipped} order${skipped !== 1 ? "s" : ""} already synced)${captchaSuffix}`
+        ? `Already up to date (${skipped} order${skipped !== 1 ? "s" : ""} already synced)${captchaSuffix}${watermarkSuffix}`
         : created > 0
-          ? `${created} new order${created !== 1 ? "s" : ""} synced${captchaSuffix}`
+          ? `${created} new order${created !== 1 ? "s" : ""} synced${captchaSuffix}${watermarkSuffix}`
           : captchaDetected
             ? "CAPTCHA detected — solve it in the browser and re-sync for tracking info"
             : undefined;
@@ -309,6 +331,7 @@ chrome.runtime.onMessageExternal.addListener((message, _sender, sendResponse) =>
 // Listen for messages from the popup
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === "START_SYNC") {
+    pendingFullSync = message.fullSync === true;
     startSync();
     sendResponse({ ok: true });
   }

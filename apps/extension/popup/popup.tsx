@@ -7,6 +7,7 @@ const statusText = $("status-text");
 const lastSyncEl = $("last-sync");
 const orderCountEl = $("order-count");
 const btnSync = $("btn-sync") as HTMLButtonElement;
+const linkFullSync = $("link-full-sync") as HTMLAnchorElement;
 const btnDashboard = $("btn-dashboard") as HTMLButtonElement;
 const btnConnect = $("btn-connect") as HTMLButtonElement;
 const btnDisconnect = $("btn-disconnect") as HTMLButtonElement;
@@ -111,8 +112,13 @@ chrome.runtime.onMessage.addListener((message) => {
   }
 });
 
-btnSync.addEventListener("click", () => {
-  chrome.runtime.sendMessage({ type: "START_SYNC" });
+btnSync.addEventListener("click", (e) => {
+  chrome.runtime.sendMessage({ type: "START_SYNC", fullSync: e.shiftKey });
+});
+
+linkFullSync.addEventListener("click", (e) => {
+  e.preventDefault();
+  chrome.runtime.sendMessage({ type: "START_SYNC", fullSync: true });
 });
 
 btnDashboard.addEventListener("click", async () => {
