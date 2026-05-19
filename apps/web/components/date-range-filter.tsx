@@ -134,7 +134,7 @@ export function DateRangeFilter() {
   const showReset = activePreset !== DEFAULT_PRESET;
 
   return (
-    <div className="relative" ref={popoverRef}>
+    <div className="relative w-full min-w-0 md:w-auto" ref={popoverRef}>
       <div className="-mx-4 flex items-center gap-1.5 overflow-x-auto px-4 md:mx-0 md:flex-wrap md:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {PRESETS.map((p) => {
           const active = activePreset === p.label;
