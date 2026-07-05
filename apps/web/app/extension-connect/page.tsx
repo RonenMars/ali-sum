@@ -27,13 +27,13 @@ function ExtensionConnectContent() {
   const searchParams = useSearchParams();
   const extensionId = searchParams.get("extensionId");
 
-  const [status, setStatus] = useState<Status>("loading");
-  const [errorMsg, setErrorMsg] = useState("");
+  const [asyncStatus, setAsyncStatus] = useState<Status>("loading");
+  const [asyncErrorMsg, setAsyncErrorMsg] = useState("");
+  const status = extensionId ? asyncStatus : "error";
+  const errorMsg = extensionId ? asyncErrorMsg : "Missing extensionId parameter";
 
   useEffect(() => {
     if (!extensionId) {
-      setStatus("error");
-      setErrorMsg("Missing extensionId parameter");
       return;
     }
 
@@ -43,21 +43,21 @@ function ExtensionConnectContent() {
       });
 
       if (res.status === 401) {
-        setStatus("needs-login");
+        setAsyncStatus("needs-login");
         return;
       }
 
       if (!res.ok) {
-        setStatus("error");
-        setErrorMsg(`Failed to mint token (${res.status})`);
+        setAsyncStatus("error");
+        setAsyncErrorMsg(`Failed to mint token (${res.status})`);
         return;
       }
 
       const { token } = (await res.json()) as { token: string };
 
       if (!window.chrome?.runtime?.sendMessage) {
-        setStatus("error");
-        setErrorMsg(
+        setAsyncStatus("error");
+        setAsyncErrorMsg(
           "chrome.runtime not available — open this page in Chrome with the extension installed.",
         );
         return;
@@ -69,16 +69,16 @@ function ExtensionConnectContent() {
         (response) => {
           const lastError = window.chrome?.runtime?.lastError;
           if (lastError) {
-            setStatus("error");
-            setErrorMsg(lastError.message);
+            setAsyncStatus("error");
+            setAsyncErrorMsg(lastError.message);
             return;
           }
           const ok = (response as { ok?: boolean } | undefined)?.ok;
           if (ok) {
-            setStatus("success");
+            setAsyncStatus("success");
           } else {
-            setStatus("error");
-            setErrorMsg("Extension rejected the token");
+            setAsyncStatus("error");
+            setAsyncErrorMsg("Extension rejected the token");
           }
         },
       );

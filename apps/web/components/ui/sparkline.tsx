@@ -28,6 +28,8 @@ export function Sparkline({
   className,
   ...props
 }: SparklineProps) {
+  const gradientId = React.useId();
+
   if (data.length < 2) {
     return null;
   }
@@ -48,7 +50,6 @@ export function Sparkline({
     .map(([x, y], i) => (i === 0 ? `M${x},${y}` : `L${x},${y}`))
     .join(" ");
   const areaPath = `${linePath} L${width},${height} L0,${height} Z`;
-  const gradientId = React.useId();
 
   return (
     <svg

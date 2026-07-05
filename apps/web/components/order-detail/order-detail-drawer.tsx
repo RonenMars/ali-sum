@@ -22,23 +22,24 @@ export function OrderDetailDrawer() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get(ORDER_DETAIL_PARAM);
 
-  const [order, setOrder] = useState<OrderDetail | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [orderState, setOrderState] = useState<{
+    orderId: string;
+    order: OrderDetail | null;
+    error: string | null;
+  } | null>(null);
   const isOpen = Boolean(orderId);
+  const currentOrderState = orderState?.orderId === orderId ? orderState : null;
+  const order = currentOrderState?.order ?? null;
+  const error = currentOrderState?.error ?? null;
+  const loading = Boolean(orderId) && currentOrderState === null;
 
   // Fetch the order whenever the id changes.
   useEffect(() => {
     if (!orderId) {
-      setOrder(null);
-      setError(null);
-      setLoading(false);
       return;
     }
 
     let cancelled = false;
-    setLoading(true);
-    setError(null);
     fetch(`/api/orders/${encodeURIComponent(orderId)}`)
       .then(async (res) => {
         if (!res.ok) {
@@ -50,14 +51,12 @@ export function OrderDetailDrawer() {
       })
       .then((data) => {
         if (!cancelled) {
-          setOrder(data);
-          setLoading(false);
+          setOrderState({ orderId, order: data, error: null });
         }
       })
       .catch((err: Error) => {
         if (!cancelled) {
-          setError(err.message);
-          setLoading(false);
+          setOrderState({ orderId, order: null, error: err.message });
         }
       });
 

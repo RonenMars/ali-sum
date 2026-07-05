@@ -44,17 +44,16 @@ export function GlobalSearch({ variant = "topbar", className }: GlobalSearchProp
   const [loading, setLoading] = useState(false);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const trimmedQuery = query.trim();
 
   // Debounced fetch.
   useEffect(() => {
     const trimmed = query.trim();
     if (trimmed.length < 2) {
-      setResults(null);
-      setLoading(false);
       return;
     }
-    setLoading(true);
     const handle = setTimeout(() => {
+      setLoading(true);
       fetch(`/api/search?q=${encodeURIComponent(trimmed)}`)
         .then(async (res) => {
           if (!res.ok) throw new Error("Search failed");
@@ -114,13 +113,15 @@ export function GlobalSearch({ variant = "topbar", className }: GlobalSearchProp
     reset();
   }, [router, reset]);
 
+  const displayedResults = trimmedQuery.length >= 2 ? results : null;
+  const loadingForQuery = trimmedQuery.length >= 2 && loading;
   const hasResults =
-    results !== null &&
-    (results.orders.length > 0 ||
-      results.sellers.length > 0 ||
-      results.tracking.length > 0);
+    displayedResults !== null &&
+    (displayedResults.orders.length > 0 ||
+      displayedResults.sellers.length > 0 ||
+      displayedResults.tracking.length > 0);
   const showEmpty =
-    results !== null && !hasResults && query.trim().length >= 2 && !loading;
+    displayedResults !== null && !hasResults && trimmedQuery.length >= 2 && !loadingForQuery;
 
   // The popover only renders when `open`, but the icon variant also needs
   // to render its own input field inside the popover.
@@ -170,23 +171,23 @@ export function GlobalSearch({ variant = "topbar", className }: GlobalSearchProp
             </div>
           )}
 
-          {query.trim().length < 2 ? (
+          {trimmedQuery.length < 2 ? (
             <div className="px-4 py-6 text-center text-xs text-muted-foreground">
               Type at least 2 characters to search orders, sellers, or tracking.
             </div>
-          ) : loading || !results ? (
+          ) : loadingForQuery || !displayedResults ? (
             <div className="px-4 py-6 text-center text-xs text-muted-foreground">
               Searching…
             </div>
           ) : showEmpty ? (
             <div className="px-4 py-6 text-center text-xs text-muted-foreground">
-              No matches for &ldquo;{query.trim()}&rdquo;.
+              No matches for &ldquo;{trimmedQuery}&rdquo;.
             </div>
           ) : (
             <div className="max-h-[60vh] overflow-y-auto py-1">
-              {results.orders.length > 0 && (
+              {displayedResults.orders.length > 0 && (
                 <ResultGroup label="Orders">
-                  {results.orders.map((o) => (
+                  {displayedResults.orders.map((o) => (
                     <OrderResultRow
                       key={o.id}
                       hit={o}
@@ -195,9 +196,9 @@ export function GlobalSearch({ variant = "topbar", className }: GlobalSearchProp
                   ))}
                 </ResultGroup>
               )}
-              {results.sellers.length > 0 && (
+              {displayedResults.sellers.length > 0 && (
                 <ResultGroup label="Sellers">
-                  {results.sellers.map((s) => (
+                  {displayedResults.sellers.map((s) => (
                     <SellerResultRow
                       key={s.name}
                       hit={s}
@@ -206,9 +207,9 @@ export function GlobalSearch({ variant = "topbar", className }: GlobalSearchProp
                   ))}
                 </ResultGroup>
               )}
-              {results.tracking.length > 0 && (
+              {displayedResults.tracking.length > 0 && (
                 <ResultGroup label="Tracking">
-                  {results.tracking.map((t) => (
+                  {displayedResults.tracking.map((t) => (
                     <TrackingResultRow
                       key={`${t.trackingNumber}-${t.orderId}`}
                       hit={t}

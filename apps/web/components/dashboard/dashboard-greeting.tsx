@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 interface DashboardGreetingProps {
   name: string;
@@ -20,11 +20,11 @@ function greetingForHour(hour: number): string {
  * server fallback to avoid mismatch flicker.
  */
 export function DashboardGreeting({ name, rangeLabel }: DashboardGreetingProps) {
-  const [greeting, setGreeting] = useState<string>("Welcome back");
-
-  useEffect(() => {
-    setGreeting(greetingForHour(new Date().getHours()));
-  }, []);
+  const greeting = useSyncExternalStore(
+    () => () => {},
+    () => greetingForHour(new Date().getHours()),
+    () => "Welcome back"
+  );
 
   return (
     <div className="leading-tight">

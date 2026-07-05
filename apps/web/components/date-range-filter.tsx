@@ -4,6 +4,7 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -34,9 +35,16 @@ export function DateRangeFilter() {
   const from = searchParams.get("from") ?? "";
   const to = searchParams.get("to") ?? "";
 
-  const [activePreset, setActivePreset] = useState<string | null>(null);
   const [customOpen, setCustomOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement | null>(null);
+  const activePreset = useMemo(() => {
+    if (!from && !to) return null;
+    const matched = PRESETS.find((p) => {
+      const r = p.getRange();
+      return r.from === from && r.to === to;
+    });
+    return matched?.label ?? null;
+  }, [from, to]);
 
   const applyRange = useCallback(
     (newFrom: string, newTo: string) => {
@@ -54,11 +62,6 @@ export function DateRangeFilter() {
   // Initialize: read URL → storage → fall back to default preset.
   useEffect(() => {
     if (from || to) {
-      const matched = PRESETS.find((p) => {
-        const r = p.getRange();
-        return r.from === from && r.to === to;
-      });
-      setActivePreset(matched?.label ?? null);
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ from, to }));
       return;
     }
@@ -74,18 +77,12 @@ export function DateRangeFilter() {
     } catch {}
     const preset = PRESETS.find((p) => p.label === DEFAULT_PRESET)!;
     const r = preset.getRange();
-    setActivePreset(DEFAULT_PRESET);
     applyRange(r.from, r.to);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keep activePreset in sync if URL changes from elsewhere.
   useEffect(() => {
     if (!from && !to) return;
-    const matched = PRESETS.find((p) => {
-      const r = p.getRange();
-      return r.from === from && r.to === to;
-    });
-    setActivePreset(matched?.label ?? null);
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ from, to }));
   }, [from, to]);
 
@@ -114,7 +111,6 @@ export function DateRangeFilter() {
   const handlePreset = useCallback(
     (preset: (typeof PRESETS)[number]) => {
       const r = preset.getRange();
-      setActivePreset(preset.label);
       setCustomOpen(false);
       applyRange(r.from, r.to);
     },
@@ -124,7 +120,6 @@ export function DateRangeFilter() {
   const reset = useCallback(() => {
     const preset = PRESETS.find((p) => p.label === DEFAULT_PRESET)!;
     const r = preset.getRange();
-    setActivePreset(DEFAULT_PRESET);
     setCustomOpen(false);
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ from: r.from, to: r.to }));
     applyRange(r.from, r.to);
@@ -193,7 +188,6 @@ export function DateRangeFilter() {
                 type="date"
                 value={from}
                 onChange={(e) => {
-                  setActivePreset(null);
                   applyRange(e.target.value, to);
                 }}
                 className={dateInputClass}
@@ -205,7 +199,6 @@ export function DateRangeFilter() {
                 type="date"
                 value={to}
                 onChange={(e) => {
-                  setActivePreset(null);
                   applyRange(from, e.target.value);
                 }}
                 className={dateInputClass}

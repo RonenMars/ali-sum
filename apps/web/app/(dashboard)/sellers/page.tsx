@@ -79,7 +79,7 @@ export default async function SellersPage() {
             </div>
           </div>
           <p className="mt-2 text-[11px] text-muted-foreground">
-            Sellers you've ordered from more than once.
+            Sellers you&apos;ve ordered from more than once.
           </p>
         </article>
       </section>

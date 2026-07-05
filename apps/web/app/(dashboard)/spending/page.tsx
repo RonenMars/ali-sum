@@ -36,10 +36,11 @@ function SpendingPageInner() {
   const [period, setPeriod] = useState<Period>("month");
   const [data, setData] = useState<SeriesItem[]>([]);
   const [currency, setCurrency] = useState("USD");
-  const [loading, setLoading] = useState(true);
+  const [loadedKey, setLoadedKey] = useState("");
+  const requestKey = `${period}:${from}:${to}`;
+  const loading = loadedKey !== requestKey;
 
   useEffect(() => {
-    setLoading(true);
     const params = new URLSearchParams({ period });
     if (from) params.set("from", from);
     if (to) params.set("to", to);
@@ -50,12 +51,12 @@ function SpendingPageInner() {
         if (cancelled) return;
         setData(d.series || []);
         if (d.currency) setCurrency(d.currency);
-        setLoading(false);
+        setLoadedKey(requestKey);
       });
     return () => {
       cancelled = true;
     };
-  }, [period, from, to]);
+  }, [period, from, to, requestKey]);
 
   const formatMoney = useMemo(() => {
     const fmt = new Intl.NumberFormat("en-US", { style: "currency", currency });
