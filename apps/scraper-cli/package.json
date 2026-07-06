@@ -1,0 +1,20 @@
+{
+  "name": "ali-sum-scraper-cli",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "sync": "tsx src/run.ts",
+    "sync:headed": "ALI_SUM_HEADED=1 tsx src/run.ts",
+    "sync:full": "tsx src/run.ts --full",
+    "login": "tsx src/run.ts --login-only",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "playwright": "^1.48.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.0.0"
+  }
+}

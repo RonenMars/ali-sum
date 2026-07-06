@@ -1,0 +1,104 @@
+{
+  "ordersPage": {
+    "url": "https://www.aliexpress.com/p/order/index.html",
+    "captcha": {
+      "textMatches": ["please\\s+slide\\s+to\\s+verify", "unusual\\s+traffic"],
+      "selectors": [
+        "#baxia-dialog-content",
+        ".baxia-dialog",
+        "#nc_1_wrapper",
+        ".nc-container"
+      ]
+    },
+    "orders": {
+      "rootSelector": ".order-item",
+      "headerInfoSelector": ".order-item-header-right-info",
+      "fields": {
+        "aliOrderId": {
+          "selector": ".order-item-header-right-info > div:last-child",
+          "source": "text",
+          "transform": "parseOrderId",
+          "fallbacks": [
+            {
+              "selector": "div.order-item-header > div.order-item-header-right > a",
+              "source": "attr",
+              "attr": "href",
+              "transform": "parseOrderIdFromUrl"
+            }
+          ]
+        },
+        "orderDate": {
+          "selector": ".order-item-header-right-info > div:first-child",
+          "source": "text",
+          "transform": "parseOrderDate"
+        },
+        "status": {
+          "selector": ".order-item-header-status-text",
+          "source": "text",
+          "default": "Unknown"
+        },
+        "sellerName": {
+          "selector": ".order-item-store",
+          "source": "text",
+          "default": ""
+        }
+      },
+      "items": {
+        "rootSelector": ".order-item-content-body",
+        "fields": {
+          "title": {
+            "selector": ".order-item-content-info-name span[title]",
+            "source": "attr",
+            "attr": "title",
+            "fallbackTextSelector": ".order-item-content-info-name",
+            "default": ""
+          },
+          "productUrl": {
+            "selector": "a",
+            "source": "attr",
+            "attr": "href",
+            "default": ""
+          },
+          "price": {
+            "selector": ".order-item-content-info-number div:first-child",
+            "source": "text",
+            "transform": "parsePrice",
+            "default": 0
+          },
+          "quantity": {
+            "selector": ".order-item-content-info-number-quantity",
+            "source": "text",
+            "default": "1"
+          }
+        },
+        "imageContainerSelector": ".order-item-content-img"
+      },
+      "tracking": {
+        "logisticsSelector": ".order-item-content-opt-logistics, .order-item-logistics, [class*='logistics']",
+        "trackingNumberPattern": "\\b([A-Z]{2}[0-9]{8,}[A-Z]{2}|[A-Z0-9]{10,30})\\b",
+        "trackLinkSelector": "a[href*='track'], a[href*='logistic'], a[href*='logistics']",
+        "trackLinkParams": ["trackId", "logisticsNo", "tracking"],
+        "dataAttrs": ["data-tracking", "data-logistics-no"],
+        "trackOrderButtonSelector": "a.order-item-btn",
+        "trackOrderButtonLabelMatch": "track\\s*order"
+      },
+      "totalSelector": ".order-item-content-opt-price-total span"
+    },
+    "pagination": {
+      "loadMoreSelector": "button.comet-btn.comet-btn-large.comet-btn-borderless",
+      "labelMatches": ["view orders", "load more", "next"],
+      "waitForNewItemsMs": 15000
+    },
+    "trackingPopover": {
+      "containerSelector": ".order-track-popover",
+      "trackingNumberSelector": ".tracking-number-title span",
+      "titleContainerSelector": ".order-track-popover-title",
+      "titleFirstParagraphSelector": "p:not(.tracking-number-title)"
+    },
+    "trackingDetailPage": {
+      "trackingNumberSelector": "[class*=\"logistic-info-v2--mailNoValue\"]",
+      "carrierSelector": "[class*=\"logistic-info-v2--carrierTitle\"]",
+      "deliverySelector": "[class*=\"arrival-time-v2--title\"]"
+    }
+  }
+}
