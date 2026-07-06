@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts", "../extension/content/scraper-core.ts", "../extension/content/scraper-transforms.ts", "../extension/content/scraper-recipe.json", "../extension/content/adapters/scraper-adapter.ts", "../extension/lib/types.ts"],
+  "exclude": ["dist", "node_modules"]
+}

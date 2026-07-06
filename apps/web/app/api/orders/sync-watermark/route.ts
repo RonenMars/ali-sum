@@ -37,10 +37,12 @@ export async function GET(req: NextRequest) {
     : allUserOrders.filter((o) => isTerminal(o.status));
 
   const watermark = candidates.at(-1) ?? null;
+  const terminalAliOrderIds = allUserOrders.filter((o) => isTerminal(o.status)).map((o) => o.aliOrderId);
   return NextResponse.json(
     {
       aliOrderId: watermark?.aliOrderId ?? null,
       orderDate: watermark?.orderDate.toISOString() ?? null,
+      terminalAliOrderIds,
     },
     { headers: CORS_HEADERS },
   );

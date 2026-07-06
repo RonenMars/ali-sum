@@ -1,40 +1,24 @@
-import { ScrapedOrder, SyncResult } from "./types";
+import { ScrapedOrder, SyncResult } from "../../extension/lib/types";
+import { API_BASE, getToken } from "./config";
 
-export interface SyncWatermark {
+interface SyncWatermark {
   aliOrderId: string;
   orderDate: string;
   terminalAliOrderIds: string[];
 }
 
-export async function getApiBase(): Promise<string> {
-  const result = await chrome.storage.local.get("apiBase");
-  return result.apiBase || __API_BASE__;
-}
-
-export async function getToken(): Promise<string | null> {
-  const result = await chrome.storage.local.get("token");
-  return result.token || null;
-}
-
 export async function whoami(): Promise<{ id: string; email: string } | null> {
-  const [apiBase, token] = await Promise.all([getApiBase(), getToken()]);
-  if (!token) return null;
-
-  const res = await fetch(`${apiBase}/api/auth/me`, {
-    headers: { Authorization: `Bearer ${token}` },
+  const res = await fetch(`${API_BASE}/api/auth/me`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
   });
-
   if (!res.ok) return null;
   return res.json();
 }
 
 export async function fetchWatermark(): Promise<SyncWatermark | null> {
-  const [apiBase, token] = await Promise.all([getApiBase(), getToken()]);
-  if (!token) return null;
-
   try {
-    const res = await fetch(`${apiBase}/api/orders/sync-watermark`, {
-      headers: { Authorization: `Bearer ${token}` },
+    const res = await fetch(`${API_BASE}/api/orders/sync-watermark`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
     });
     if (!res.ok) return null;
     const data = await res.json();
@@ -52,11 +36,7 @@ export async function syncOrders(
   orders: ScrapedOrder[],
   onProgress?: (uploaded: number, total: number) => void,
 ): Promise<SyncResult> {
-  const [apiBase, token] = await Promise.all([getApiBase(), getToken()]);
-
-  if (!token) {
-    throw new Error("Not authenticated. Please connect your account first.");
-  }
+  const token = getToken();
 
   let totalCreated = 0;
   let totalSkipped = 0;
@@ -66,7 +46,7 @@ export async function syncOrders(
     const batch = orders.slice(i, i + BATCH_SIZE);
     onProgress?.(i, orders.length);
 
-    const res = await fetch(`${apiBase}/api/orders/sync`, {
+    const res = await fetch(`${API_BASE}/api/orders/sync`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

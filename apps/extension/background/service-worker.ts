@@ -143,6 +143,7 @@ async function startSync() {
     const tabId = await findOrOpenOrdersTab();
     const watermark = pendingFullSync ? null : await fetchWatermark();
     pendingFullSync = false;
+    const terminalAliOrderIds = new Set(watermark?.terminalAliOrderIds ?? []);
     let hitWatermark = false;
     const ordersById = new Map<string, ScrapedOrder>();
     let page = 1;
@@ -195,12 +196,14 @@ async function startSync() {
     }
 
     const allOrders = Array.from(ordersById.values());
+    const ordersToSync = allOrders.filter((o) => !terminalAliOrderIds.has(o.aliOrderId));
+    const skippedKnownTerminal = allOrders.length - ordersToSync.length;
 
     // Enrich orders with tracking details by navigating to each order's
     // tracking page. Only orders that have a "Track order" link are visited.
-    // Orders at/before the watermark are terminal — skip them.
+    // Orders already terminal in the project DB are skipped.
     const wmDate = watermark ? new Date(watermark.orderDate).getTime() : 0;
-    const ordersWithTracking = allOrders.filter(
+    const ordersWithTracking = ordersToSync.filter(
       (o) =>
         o.trackingPageUrl &&
         !o.trackingNumber &&
@@ -248,9 +251,9 @@ async function startSync() {
     }
 
     let created = 0;
-    let skipped = 0;
-    if (allOrders.length > 0) {
-      const result = await syncOrders(allOrders, (uploaded, total) => {
+    let skipped = skippedKnownTerminal;
+    if (ordersToSync.length > 0) {
+      const result = await syncOrders(ordersToSync, (uploaded, total) => {
         broadcastProgress({
           status: "syncing",
           currentPage: page,
@@ -260,7 +263,7 @@ async function startSync() {
         });
       });
       created = result.created;
-      skipped = result.skipped;
+      skipped += result.skipped;
     }
 
     await chrome.storage.local.set({
