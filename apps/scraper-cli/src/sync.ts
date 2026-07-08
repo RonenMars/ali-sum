@@ -11,6 +11,7 @@ import {
 } from "../../extension/content/scraper-core";
 import { createPlaywrightAdapter } from "./adapters/playwright-adapter";
 import { fetchWatermark, syncOrders } from "./api-client";
+import { logger } from "./logger";
 
 const MAX_PAGES = 200;
 const ORDERS_URL = "https://www.aliexpress.com/p/order/index.html";
@@ -28,7 +29,7 @@ export async function runSync(page: Page, options: { fullSync: boolean }): Promi
   let hasMore = true;
 
   while (hasMore && pageNum <= MAX_PAGES) {
-    console.log(`[ali-sum] Scanning page ${pageNum} (${ordersById.size} orders so far)...`);
+    logger.info({ pageNum, ordersSoFar: ordersById.size }, "Scanning page");
 
     const orders = await scrapeOrdersFromPage(adapter);
     const sizeBefore = ordersById.size;
@@ -39,6 +40,7 @@ export async function runSync(page: Page, options: { fullSync: boolean }): Promi
     hasMore = await hasNextPage(adapter);
 
     if (watermark && orders.some((o) => o.aliOrderId === watermark.aliOrderId)) {
+      logger.info({ aliOrderId: watermark.aliOrderId }, "Hit watermark order, stopping pagination");
       hitWatermark = true;
       break;
     }
@@ -54,13 +56,19 @@ export async function runSync(page: Page, options: { fullSync: boolean }): Promi
     // Stop if the button didn't actually produce new items AND we also didn't
     // pick up any new orders this iteration — prevents infinite loops if
     // AliExpress changes UI or the button is disabled.
-    if (!loaded && addedThisPage === 0) break;
+    if (!loaded && addedThisPage === 0) {
+      logger.debug({ pageNum }, "No new orders and load-more produced nothing, stopping pagination");
+      break;
+    }
 
     pageNum++;
   }
 
   if (watermark && !hitWatermark && pageNum > MAX_PAGES) {
-    console.warn(`[ali-sum] Watermark order ${watermark.aliOrderId} not seen after ${MAX_PAGES} pages — treating as full scan.`);
+    logger.warn(
+      { aliOrderId: watermark.aliOrderId, maxPages: MAX_PAGES },
+      "Watermark order not seen after max pages — treating as full scan",
+    );
   }
 
   const allOrders = Array.from(ordersById.values());
@@ -68,9 +76,15 @@ export async function runSync(page: Page, options: { fullSync: boolean }): Promi
   const skippedKnownTerminal = allOrders.length - ordersToSync.length;
   const orderIdsToSync = new Set(ordersToSync.map((o) => o.aliOrderId));
 
+  logger.info(
+    { totalScanned: allOrders.length, toSync: ordersToSync.length, skippedKnownTerminal },
+    "Finished scanning order list",
+  );
+
   // Enrich orders with tracking details from list-page hover popovers first.
-  console.log("[ali-sum] Fetching tracking info from popovers...");
+  logger.info("Fetching tracking info from popovers...");
   const { trackingMap, captchaDetected: popoverCaptcha } = await scrapeTrackingFromPopovers(adapter, orderIdsToSync);
+  if (popoverCaptcha) logger.warn("CAPTCHA detected while fetching popover tracking info");
   for (const order of ordersToSync) {
     const detail = trackingMap[order.aliOrderId];
     if (detail?.trackingNumber) order.trackingNumber = detail.trackingNumber;
@@ -85,7 +99,7 @@ export async function runSync(page: Page, options: { fullSync: boolean }): Promi
 
   let captchaDetected = popoverCaptcha;
   if (!captchaDetected && ordersNeedingTracking.length > 0) {
-    console.log(`[ali-sum] Fetching tracking detail pages for ${ordersNeedingTracking.length} orders...`);
+    logger.info({ count: ordersNeedingTracking.length }, "Fetching tracking detail pages");
     for (let i = 0; i < ordersNeedingTracking.length; i++) {
       if (i > 0) await humanDelay(4000, 10000);
 
@@ -93,6 +107,7 @@ export async function runSync(page: Page, options: { fullSync: boolean }): Promi
       try {
         await page.goto(order.trackingPageUrl!, { waitUntil: "domcontentloaded" });
         if (await detectCaptcha(adapter)) {
+          logger.warn({ aliOrderId: order.aliOrderId }, "CAPTCHA detected on tracking detail page, aborting tracking fetch");
           captchaDetected = true;
           break;
         }
@@ -101,7 +116,7 @@ export async function runSync(page: Page, options: { fullSync: boolean }): Promi
         if (detail.carrier) order.carrier = detail.carrier;
         if (detail.estimatedDelivery) order.estimatedDelivery = detail.estimatedDelivery;
       } catch (err) {
-        console.warn(`[ali-sum] Failed to fetch tracking for ${order.aliOrderId}:`, err);
+        logger.warn({ err, aliOrderId: order.aliOrderId }, "Failed to fetch tracking detail page");
       }
     }
   }
@@ -109,21 +124,23 @@ export async function runSync(page: Page, options: { fullSync: boolean }): Promi
   let created = 0;
   let skipped = skippedKnownTerminal;
   if (ordersToSync.length > 0) {
+    logger.info({ count: ordersToSync.length }, "Uploading orders to backend");
     const result = await syncOrders(ordersToSync, (uploaded, total) => {
-      console.log(`[ali-sum] Uploading orders... (${uploaded}/${total})`);
+      logger.debug({ uploaded, total }, "Upload progress");
     });
     created = result.created;
     skipped += result.skipped;
   }
 
-  const captchaSuffix = captchaDetected
-    ? " — CAPTCHA detected, some tracking info may be missing. Solve it by running with --login-only and re-sync."
-    : "";
-  const watermarkSuffix = hitWatermark ? " — stopped at last delivered order" : "";
+  if (captchaDetected) {
+    logger.warn("CAPTCHA detected during this run — some tracking info may be missing. Solve it by running with --login-only and re-sync.");
+  }
+  if (hitWatermark) {
+    logger.info("Stopped at last delivered order (watermark)");
+  }
 
-  console.log(
-    created === 0 && skipped > 0
-      ? `[ali-sum] Already up to date (${skipped} order${skipped !== 1 ? "s" : ""} already synced)${captchaSuffix}${watermarkSuffix}`
-      : `[ali-sum] ${created} new order${created !== 1 ? "s" : ""} synced${captchaSuffix}${watermarkSuffix}`,
+  logger.info(
+    { created, skipped },
+    created === 0 && skipped > 0 ? "Already up to date" : "Sync complete",
   );
 }
