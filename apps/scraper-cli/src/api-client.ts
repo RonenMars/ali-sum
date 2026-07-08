@@ -1,11 +1,13 @@
 import { ScrapedOrder, SyncResult } from "../../extension/lib/types";
+import type { OrderSyncState } from "../../extension/lib/tracking-sync";
 import { API_BASE, getToken } from "./config";
 import { logger } from "./logger";
 
 interface SyncWatermark {
-  aliOrderId: string;
-  orderDate: string;
+  aliOrderId: string | null;
+  orderDate: string | null;
   terminalAliOrderIds: string[];
+  orderStates: Map<string, OrderSyncState>;
 }
 
 export async function whoami(): Promise<{ id: string; email: string } | null> {
@@ -26,12 +28,28 @@ export async function fetchWatermark(): Promise<SyncWatermark | null> {
       return null;
     }
     const data = await res.json();
+    const rawOrderStates: unknown[] = Array.isArray(data.orderStates) ? data.orderStates : [];
+    const orderStates = new Map<string, OrderSyncState>(
+      rawOrderStates
+        .filter(
+          (state): state is OrderSyncState =>
+            typeof state === "object" &&
+            state !== null &&
+            typeof (state as Partial<OrderSyncState>).aliOrderId === "string",
+        )
+        .map((state) => [state.aliOrderId, state]),
+    );
     if (!data.aliOrderId) {
-      logger.info("No watermark yet (first sync for this account)");
-      return null;
+      logger.info({ orderStates: orderStates.size }, "No sync watermark yet");
+    } else {
+      logger.info({ aliOrderId: data.aliOrderId, orderDate: data.orderDate }, "Fetched sync watermark");
     }
-    logger.info({ aliOrderId: data.aliOrderId, orderDate: data.orderDate }, "Fetched sync watermark");
-    return { ...data, terminalAliOrderIds: data.terminalAliOrderIds ?? [] };
+    return {
+      aliOrderId: data.aliOrderId ?? null,
+      orderDate: data.orderDate ?? null,
+      terminalAliOrderIds: data.terminalAliOrderIds ?? [],
+      orderStates,
+    };
   } catch (err) {
     logger.warn({ err }, "Error fetching sync watermark, falling back to full scan");
     return null;

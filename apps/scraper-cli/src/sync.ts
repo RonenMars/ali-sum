@@ -1,5 +1,11 @@
 import type { Page } from "playwright";
-import { ScrapedOrder } from "../../extension/lib/types";
+import type { ScrapedOrder } from "../../extension/lib/types";
+import {
+  applyTrackingMap,
+  getOrderIdsToEnrich,
+  selectOrdersNeedingTrackingDetail,
+  selectOrdersToSync,
+} from "../../extension/lib/tracking-sync";
 import {
   scrapeOrdersFromPage,
   hasNextPage,
@@ -22,7 +28,7 @@ export async function runSync(page: Page, options: { fullSync: boolean }): Promi
   await page.goto(ORDERS_URL, { waitUntil: "domcontentloaded" });
 
   const watermark = options.fullSync ? null : await fetchWatermark();
-  const terminalAliOrderIds = new Set(watermark?.terminalAliOrderIds ?? []);
+  const orderStates = watermark?.orderStates ?? new Map();
   let hitWatermark = false;
   const ordersById = new Map<string, ScrapedOrder>();
   let pageNum = 1;
@@ -39,7 +45,7 @@ export async function runSync(page: Page, options: { fullSync: boolean }): Promi
     const addedThisPage = ordersById.size - sizeBefore;
     hasMore = await hasNextPage(adapter);
 
-    if (watermark && orders.some((o) => o.aliOrderId === watermark.aliOrderId)) {
+    if (watermark?.aliOrderId && orders.some((o) => o.aliOrderId === watermark.aliOrderId)) {
       logger.info({ aliOrderId: watermark.aliOrderId }, "Hit watermark order, stopping pagination");
       hitWatermark = true;
       break;
@@ -72,30 +78,26 @@ export async function runSync(page: Page, options: { fullSync: boolean }): Promi
   }
 
   const allOrders = Array.from(ordersById.values());
-  const ordersToSync = allOrders.filter((o) => !terminalAliOrderIds.has(o.aliOrderId));
-  const skippedKnownTerminal = allOrders.length - ordersToSync.length;
-  const orderIdsToSync = new Set(ordersToSync.map((o) => o.aliOrderId));
+  const orderIdsToEnrich = getOrderIdsToEnrich(allOrders, orderStates);
 
   logger.info(
-    { totalScanned: allOrders.length, toSync: ordersToSync.length, skippedKnownTerminal },
+    { totalScanned: allOrders.length, toEnrich: orderIdsToEnrich.size },
     "Finished scanning order list",
   );
 
   // Enrich orders with tracking details from list-page hover popovers first.
-  logger.info("Fetching tracking info from popovers...");
-  const { trackingMap, captchaDetected: popoverCaptcha } = await scrapeTrackingFromPopovers(adapter, orderIdsToSync);
-  if (popoverCaptcha) logger.warn("CAPTCHA detected while fetching popover tracking info");
-  for (const order of ordersToSync) {
-    const detail = trackingMap[order.aliOrderId];
-    if (detail?.trackingNumber) order.trackingNumber = detail.trackingNumber;
-    if (detail?.estimatedDelivery) order.estimatedDelivery = detail.estimatedDelivery;
+  let popoverCaptcha = false;
+  if (orderIdsToEnrich.size > 0) {
+    logger.info("Fetching tracking info from popovers...");
+    const trackingResult = await scrapeTrackingFromPopovers(adapter, orderIdsToEnrich);
+    popoverCaptcha = trackingResult.captchaDetected;
+    if (popoverCaptcha) logger.warn("CAPTCHA detected while fetching popover tracking info");
+    applyTrackingMap(allOrders, trackingResult.trackingMap);
   }
 
   // Fallback: navigate to each remaining order's tracking page directly.
-  const wmDate = watermark ? new Date(watermark.orderDate).getTime() : 0;
-  const ordersNeedingTracking = ordersToSync.filter(
-    (o) => o.trackingPageUrl && !o.trackingNumber && new Date(o.orderDate).getTime() > wmDate,
-  );
+  const enrichableOrders = allOrders.filter((o) => orderIdsToEnrich.has(o.aliOrderId));
+  const ordersNeedingTracking = selectOrdersNeedingTrackingDetail(enrichableOrders);
 
   let captchaDetected = popoverCaptcha;
   if (!captchaDetected && ordersNeedingTracking.length > 0) {
@@ -121,15 +123,24 @@ export async function runSync(page: Page, options: { fullSync: boolean }): Promi
     }
   }
 
+  const { ordersToSync, skippedUnchanged } = selectOrdersToSync(allOrders, orderStates);
+
+  logger.info(
+    { toSync: ordersToSync.length, skippedUnchanged },
+    "Prepared orders for upload",
+  );
+
   let created = 0;
-  let skipped = skippedKnownTerminal;
+  let serverSkipped = 0;
   if (ordersToSync.length > 0) {
     logger.info({ count: ordersToSync.length }, "Uploading orders to backend");
     const result = await syncOrders(ordersToSync, (uploaded, total) => {
       logger.debug({ uploaded, total }, "Upload progress");
     });
     created = result.created;
-    skipped += result.skipped;
+    serverSkipped = result.skipped;
+  } else if (allOrders.length > 0) {
+    logger.info("Already up to date; skipping backend upload");
   }
 
   if (captchaDetected) {
@@ -140,7 +151,7 @@ export async function runSync(page: Page, options: { fullSync: boolean }): Promi
   }
 
   logger.info(
-    { created, skipped },
-    created === 0 && skipped > 0 ? "Already up to date" : "Sync complete",
+    { created, serverSkipped, uploaded: ordersToSync.length, skippedUnchanged },
+    ordersToSync.length === 0 && skippedUnchanged > 0 ? "Already up to date" : "Sync complete",
   );
 }

@@ -21,12 +21,22 @@ export async function GET(req: NextRequest) {
 
   const allUserOrders = await prisma.order.findMany({
     where: { userId },
-    select: { aliOrderId: true, orderDate: true, status: true },
+    select: {
+      aliOrderId: true,
+      orderDate: true,
+      status: true,
+      trackingNumber: true,
+      carrier: true,
+      estimatedDelivery: true,
+    },
     orderBy: { orderDate: "asc" },
   });
 
   if (allUserOrders.length === 0) {
-    return NextResponse.json({ aliOrderId: null, orderDate: null }, { headers: CORS_HEADERS });
+    return NextResponse.json(
+      { aliOrderId: null, orderDate: null, terminalAliOrderIds: [], orderStates: [] },
+      { headers: CORS_HEADERS },
+    );
   }
 
   const oldestNonTerminal = allUserOrders.find((o) => !isTerminal(o.status));
@@ -38,11 +48,20 @@ export async function GET(req: NextRequest) {
 
   const watermark = candidates.at(-1) ?? null;
   const terminalAliOrderIds = allUserOrders.filter((o) => isTerminal(o.status)).map((o) => o.aliOrderId);
+  const orderStates = allUserOrders.map((o) => ({
+    aliOrderId: o.aliOrderId,
+    status: o.status,
+    trackingNumber: o.trackingNumber,
+    carrier: o.carrier,
+    estimatedDelivery: o.estimatedDelivery?.toISOString() ?? null,
+  }));
+
   return NextResponse.json(
     {
       aliOrderId: watermark?.aliOrderId ?? null,
       orderDate: watermark?.orderDate.toISOString() ?? null,
       terminalAliOrderIds,
+      orderStates,
     },
     { headers: CORS_HEADERS },
   );

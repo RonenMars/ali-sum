@@ -9,6 +9,6 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["src/**/*.ts", "../extension/content/scraper-core.ts", "../extension/content/scraper-transforms.ts", "../extension/content/scraper-recipe.json", "../extension/content/adapters/scraper-adapter.ts", "../extension/lib/types.ts"],
+  "include": ["src/**/*.ts", "../extension/content/scraper-core.ts", "../extension/content/scraper-transforms.ts", "../extension/content/scraper-recipe.json", "../extension/content/adapters/scraper-adapter.ts", "../extension/lib/types.ts", "../extension/lib/tracking-sync.ts"],
   "exclude": ["dist", "node_modules"]
 }

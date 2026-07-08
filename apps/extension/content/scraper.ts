@@ -43,7 +43,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 
   if (message.type === "SCRAPE_TRACKING_POPOVERS") {
-    scrapeTrackingFromPopovers(domAdapter).then(({ trackingMap, captchaDetected }) => {
+    const allowedOrderIds = Array.isArray(message.allowedOrderIds)
+      ? new Set(message.allowedOrderIds.filter((id): id is string => typeof id === "string"))
+      : undefined;
+    scrapeTrackingFromPopovers(domAdapter, allowedOrderIds).then(({ trackingMap, captchaDetected }) => {
       sendResponse({ type: "SCRAPE_TRACKING_POPOVERS_RESULT", trackingMap, captchaDetected });
     });
     return true; // async response

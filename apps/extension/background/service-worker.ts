@@ -1,5 +1,12 @@
 import { syncOrders, getToken, fetchWatermark } from "../lib/api-client";
 import { SyncProgress, ScrapedOrder, TrackingDetail } from "../lib/types";
+import {
+  applyTrackingMap,
+  getOrderIdsToEnrich,
+  selectOrdersNeedingTrackingDetail,
+  selectOrdersToSync,
+  type TrackingMap,
+} from "../lib/tracking-sync";
 
 let pendingFullSync = false;
 
@@ -73,6 +80,28 @@ function sendLoadMoreMessage(
   });
 }
 
+function sendTrackingPopoversMessage(
+  tabId: number,
+  allowedOrderIds: Set<string>,
+): Promise<{
+  trackingMap: TrackingMap;
+  captchaDetected?: boolean;
+}> {
+  return new Promise((resolve, reject) => {
+    chrome.tabs.sendMessage(
+      tabId,
+      { type: "SCRAPE_TRACKING_POPOVERS", allowedOrderIds: Array.from(allowedOrderIds) },
+      (response) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        resolve(response || { trackingMap: {} });
+      },
+    );
+  });
+}
+
 function sendTrackingDetailMessageRaw(
   tabId: number,
 ): Promise<TrackingDetail & { captchaDetected?: boolean }> {
@@ -143,7 +172,7 @@ async function startSync() {
     const tabId = await findOrOpenOrdersTab();
     const watermark = pendingFullSync ? null : await fetchWatermark();
     pendingFullSync = false;
-    const terminalAliOrderIds = new Set(watermark?.terminalAliOrderIds ?? []);
+    const orderStates = watermark?.orderStates ?? new Map();
     let hitWatermark = false;
     const ordersById = new Map<string, ScrapedOrder>();
     let page = 1;
@@ -165,7 +194,7 @@ async function startSync() {
       const addedThisPage = ordersById.size - sizeBefore;
       hasMore = result.hasNextPage;
 
-      if (watermark && result.orders.some((o) => o.aliOrderId === watermark.aliOrderId)) {
+      if (watermark?.aliOrderId && result.orders.some((o) => o.aliOrderId === watermark.aliOrderId)) {
         hitWatermark = true;
         break;
       }
@@ -196,22 +225,26 @@ async function startSync() {
     }
 
     const allOrders = Array.from(ordersById.values());
-    const ordersToSync = allOrders.filter((o) => !terminalAliOrderIds.has(o.aliOrderId));
-    const skippedKnownTerminal = allOrders.length - ordersToSync.length;
+    const orderIdsToEnrich = getOrderIdsToEnrich(allOrders, orderStates);
+
+    // Enrich orders with tracking details from list-page hover popovers first.
+    // This is the fastest source for the tracking number and ETA on the order list.
+    let captchaDetected = false;
+    if (orderIdsToEnrich.size > 0) {
+      const { trackingMap, captchaDetected: popoverCaptcha } = await sendTrackingPopoversMessage(
+        tabId,
+        orderIdsToEnrich,
+      );
+      captchaDetected = popoverCaptcha === true;
+      applyTrackingMap(allOrders, trackingMap);
+    }
 
     // Enrich orders with tracking details by navigating to each order's
     // tracking page. Only orders that have a "Track order" link are visited.
-    // Orders already terminal in the project DB are skipped.
-    const wmDate = watermark ? new Date(watermark.orderDate).getTime() : 0;
-    const ordersWithTracking = ordersToSync.filter(
-      (o) =>
-        o.trackingPageUrl &&
-        !o.trackingNumber &&
-        new Date(o.orderDate).getTime() > wmDate,
-    );
+    const enrichableOrders = allOrders.filter((o) => orderIdsToEnrich.has(o.aliOrderId));
+    const ordersWithTracking = selectOrdersNeedingTrackingDetail(enrichableOrders);
 
-    let captchaDetected = false;
-    if (ordersWithTracking.length > 0) {
+    if (!captchaDetected && ordersWithTracking.length > 0) {
       // Open a dedicated tab for tracking page navigation
       const trackTab = await chrome.tabs.create({ active: false });
       const trackTabId = trackTab.id!;
@@ -250,10 +283,10 @@ async function startSync() {
       await chrome.tabs.remove(trackTabId);
     }
 
-    let created = 0;
-    let skipped = skippedKnownTerminal;
+    const { ordersToSync, skippedUnchanged } = selectOrdersToSync(allOrders, orderStates);
+
     if (ordersToSync.length > 0) {
-      const result = await syncOrders(ordersToSync, (uploaded, total) => {
+      await syncOrders(ordersToSync, (uploaded, total) => {
         broadcastProgress({
           status: "syncing",
           currentPage: page,
@@ -262,8 +295,6 @@ async function startSync() {
           message: `Uploading orders to server... (${uploaded}/${total})`,
         });
       });
-      created = result.created;
-      skipped += result.skipped;
     }
 
     await chrome.storage.local.set({
@@ -276,10 +307,10 @@ async function startSync() {
       : "";
     const watermarkSuffix = hitWatermark ? " — stopped at last delivered order" : "";
     const message =
-      created === 0 && skipped > 0
-        ? `Already up to date (${skipped} order${skipped !== 1 ? "s" : ""} already synced)${captchaSuffix}${watermarkSuffix}`
-        : created > 0
-          ? `${created} new order${created !== 1 ? "s" : ""} synced${captchaSuffix}${watermarkSuffix}`
+      ordersToSync.length === 0 && skippedUnchanged > 0
+        ? `Already up to date (${skippedUnchanged} order${skippedUnchanged !== 1 ? "s" : ""} unchanged)${captchaSuffix}${watermarkSuffix}`
+        : ordersToSync.length > 0
+          ? `${ordersToSync.length} changed order${ordersToSync.length !== 1 ? "s" : ""} synced${captchaSuffix}${watermarkSuffix}`
           : captchaDetected
             ? "CAPTCHA detected — solve it in the browser and re-sync for tracking info"
             : undefined;

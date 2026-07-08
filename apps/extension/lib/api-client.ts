@@ -1,9 +1,11 @@
 import { ScrapedOrder, SyncResult } from "./types";
+import type { OrderSyncState } from "./tracking-sync";
 
 export interface SyncWatermark {
-  aliOrderId: string;
-  orderDate: string;
+  aliOrderId: string | null;
+  orderDate: string | null;
   terminalAliOrderIds: string[];
+  orderStates: Map<string, OrderSyncState>;
 }
 
 export async function getApiBase(): Promise<string> {
@@ -38,9 +40,23 @@ export async function fetchWatermark(): Promise<SyncWatermark | null> {
     });
     if (!res.ok) return null;
     const data = await res.json();
-    return data.aliOrderId
-      ? { ...data, terminalAliOrderIds: data.terminalAliOrderIds ?? [] }
-      : null;
+    const rawOrderStates: unknown[] = Array.isArray(data.orderStates) ? data.orderStates : [];
+    const orderStates = new Map<string, OrderSyncState>(
+      rawOrderStates
+        .filter(
+          (state): state is OrderSyncState =>
+            typeof state === "object" &&
+            state !== null &&
+            typeof (state as Partial<OrderSyncState>).aliOrderId === "string",
+        )
+        .map((state) => [state.aliOrderId, state]),
+    );
+    return {
+      aliOrderId: data.aliOrderId ?? null,
+      orderDate: data.orderDate ?? null,
+      terminalAliOrderIds: data.terminalAliOrderIds ?? [],
+      orderStates,
+    };
   } catch {
     return null;
   }
