@@ -63,6 +63,16 @@ export function createPlaywrightAdapter(page: Page): ScraperAdapter {
       return page.locator(selector).count();
     },
 
+    async queryVisible(selector) {
+      const locator = page.locator(selector);
+      const count = await locator.count();
+      for (let i = 0; i < count; i++) {
+        const box = await locator.nth(i).boundingBox().catch(() => null);
+        if (box && box.width > 0) return locator.nth(i);
+      }
+      return null;
+    },
+
     async bodyText() {
       return page.locator("body").innerText().catch(() => "");
     },

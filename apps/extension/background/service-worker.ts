@@ -156,6 +156,7 @@ async function scrapeTab(tabId: number): Promise<{ orders: ScrapedOrder[]; hasNe
 }
 
 const MAX_PAGES = 200;
+const BATCH_SIZE = 50;
 
 function randomBetween(min: number, max: number): number {
   return min + Math.random() * (max - min);
@@ -175,8 +176,38 @@ async function startSync() {
     const orderStates = watermark?.orderStates ?? new Map();
     let hitWatermark = false;
     const ordersById = new Map<string, ScrapedOrder>();
+    const uploadedIds = new Set<string>();
+    let popoverCaptcha = false;
     let page = 1;
     let hasMore = true;
+
+    // Enrich + upload orders accumulated since the last flush, so partial
+    // progress reaches the backend even if the scan crashes or hits a CAPTCHA.
+    async function flushBatch() {
+      const batch = Array.from(ordersById.values()).filter((o) => !uploadedIds.has(o.aliOrderId));
+      if (batch.length === 0) return;
+
+      const orderIdsToEnrich = getOrderIdsToEnrich(batch, orderStates);
+      if (orderIdsToEnrich.size > 0 && !popoverCaptcha) {
+        const { trackingMap, captchaDetected } = await sendTrackingPopoversMessage(tabId, orderIdsToEnrich);
+        popoverCaptcha = captchaDetected === true;
+        applyTrackingMap(batch, trackingMap);
+      }
+
+      const { ordersToSync } = selectOrdersToSync(batch, orderStates);
+      for (const order of batch) uploadedIds.add(order.aliOrderId);
+      if (ordersToSync.length === 0) return;
+
+      await syncOrders(ordersToSync, (uploaded, total) => {
+        broadcastProgress({
+          status: "syncing",
+          currentPage: page,
+          totalPages: null,
+          ordersFound: ordersById.size,
+          message: `Uploading batch... (${uploaded}/${total})`,
+        });
+      });
+    }
 
     while (hasMore && page <= MAX_PAGES) {
       broadcastProgress({
@@ -193,6 +224,10 @@ async function startSync() {
       }
       const addedThisPage = ordersById.size - sizeBefore;
       hasMore = result.hasNextPage;
+
+      if (ordersById.size - uploadedIds.size >= BATCH_SIZE) {
+        await flushBatch();
+      }
 
       if (watermark?.aliOrderId && result.orders.some((o) => o.aliOrderId === watermark.aliOrderId)) {
         hitWatermark = true;
@@ -224,25 +259,17 @@ async function startSync() {
       );
     }
 
+    await flushBatch();
+
     const allOrders = Array.from(ordersById.values());
     const orderIdsToEnrich = getOrderIdsToEnrich(allOrders, orderStates);
 
-    // Enrich orders with tracking details from list-page hover popovers first.
-    // This is the fastest source for the tracking number and ETA on the order list.
-    let captchaDetected = false;
-    if (orderIdsToEnrich.size > 0) {
-      const { trackingMap, captchaDetected: popoverCaptcha } = await sendTrackingPopoversMessage(
-        tabId,
-        orderIdsToEnrich,
-      );
-      captchaDetected = popoverCaptcha === true;
-      applyTrackingMap(allOrders, trackingMap);
-    }
-
     // Enrich orders with tracking details by navigating to each order's
     // tracking page. Only orders that have a "Track order" link are visited.
+    let captchaDetected = popoverCaptcha;
     const enrichableOrders = allOrders.filter((o) => orderIdsToEnrich.has(o.aliOrderId));
     const ordersWithTracking = selectOrdersNeedingTrackingDetail(enrichableOrders);
+    const ordersTouchedByFallback: ScrapedOrder[] = [];
 
     if (!captchaDetected && ordersWithTracking.length > 0) {
       // Open a dedicated tab for tracking page navigation
@@ -275,6 +302,7 @@ async function startSync() {
           if (detail.trackingNumber) order.trackingNumber = detail.trackingNumber;
           if (detail.carrier) order.carrier = detail.carrier;
           if (detail.estimatedDelivery) order.estimatedDelivery = detail.estimatedDelivery;
+          ordersTouchedByFallback.push(order);
         } catch (err) {
           console.warn(`[ali-sum] Failed to fetch tracking for ${order.aliOrderId}:`, err);
         }
@@ -283,7 +311,7 @@ async function startSync() {
       await chrome.tabs.remove(trackTabId);
     }
 
-    const { ordersToSync, skippedUnchanged } = selectOrdersToSync(allOrders, orderStates);
+    const { ordersToSync, skippedUnchanged } = selectOrdersToSync(ordersTouchedByFallback, orderStates);
 
     if (ordersToSync.length > 0) {
       await syncOrders(ordersToSync, (uploaded, total) => {

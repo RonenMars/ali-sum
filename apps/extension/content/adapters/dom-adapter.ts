@@ -48,6 +48,11 @@ export const domAdapter: ScraperAdapter = {
     return document.querySelectorAll(selector).length;
   },
 
+  async queryVisible(selector) {
+    const matches = Array.from(document.querySelectorAll<HTMLElement>(selector));
+    return matches.find((el) => el.getBoundingClientRect().width > 0) ?? null;
+  },
+
   async bodyText() {
     return document.body.innerText || "";
   },

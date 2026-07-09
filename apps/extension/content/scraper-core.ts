@@ -43,6 +43,29 @@ export async function detectCaptcha(adapter: ScraperAdapter): Promise<boolean> {
   return false;
 }
 
+// AliExpress occasionally shows an informational modal (e.g. "payable amount has
+// changed due to exchange rate") on top of the order list. It blocks pagination
+// and hover-based tracking scraping silently — force:true clicks/hovers don't
+// error even when an element is covered by an overlay — so it must be dismissed
+// proactively rather than relying on an exception to surface it.
+export async function dismissDialogs(adapter: ScraperAdapter): Promise<boolean> {
+  const cfg = recipe.ordersPage.dismissibleDialogs;
+  const body = await adapter.bodyText();
+  const isPresent = cfg.textMatches.some((pattern) => new RegExp(pattern, "i").test(body));
+  if (!isPresent) return false;
+
+  const labelRe = new RegExp(cfg.confirmButtonLabelMatch, "i");
+  const candidates = await adapter.queryAll(cfg.confirmButtonSelector);
+  for (const btn of candidates) {
+    const label = await adapter.text(btn);
+    if (labelRe.test(label)) {
+      await adapter.click(btn);
+      return true;
+    }
+  }
+  return false;
+}
+
 async function scrapeImageUrl(adapter: ScraperAdapter, container: ScraperElement): Promise<string> {
   const { cleanImageUrl } = transforms as unknown as { cleanImageUrl: (u: string) => string };
 
@@ -59,25 +82,16 @@ async function scrapeImageUrl(adapter: ScraperAdapter, container: ScraperElement
     if (lazySrc) return lazySrc;
   }
 
-  // Background-image fallback relies on computed styles — only meaningful in a real DOM.
-  if (typeof window !== "undefined" && container) {
-    const el = container as HTMLElement;
-    const targets = [el, ...Array.from(el.querySelectorAll<HTMLElement>("*"))];
-    for (const target of targets) {
-      const style = target.getAttribute("style") || "";
-      const bgMatch = style.match(/url\(['"]?(https?[^'")\s]+)['"]?\)/);
-      if (bgMatch) {
-        const url = bgMatch[1];
-        return /alicdn\.com/i.test(url) ? cleanImageUrl(url) : url;
-      }
-      const computed = window.getComputedStyle(target).backgroundImage;
-      if (computed && computed !== "none") {
-        const match = computed.match(/url\(['"]?(https?[^'")\s]+)['"]?\)/);
-        if (match) {
-          const url = match[1];
-          return /alicdn\.com/i.test(url) ? cleanImageUrl(url) : url;
-        }
-      }
+  // Order thumbnails render as an inline `style="background-image: url(...)"` on the
+  // container div (or a descendant) rather than an <img> tag — read the attribute
+  // directly so this works identically in a real DOM and under Playwright.
+  const targets = [container, ...(await adapter.queryAll("*", container))];
+  for (const target of targets) {
+    const style = (await adapter.attr(target, "style")) || "";
+    const match = style.match(/url\(['"]?(https?[^'")\s]+)['"]?\)/);
+    if (match) {
+      const url = match[1];
+      return /alicdn\.com/i.test(url) ? cleanImageUrl(url) : url;
     }
   }
 
@@ -306,7 +320,7 @@ async function scrapePopoverContent(
   adapter: ScraperAdapter,
 ): Promise<{ trackingNumber?: string; estimatedDelivery?: string }> {
   const cfg = recipe.ordersPage.trackingPopover;
-  const popover = await adapter.queryOne(cfg.containerSelector);
+  const popover = await adapter.queryVisible(cfg.containerSelector);
   if (!popover) return {};
 
   const trackingEl = await adapter.queryOne(cfg.trackingNumberSelector, popover);
@@ -322,6 +336,25 @@ async function scrapePopoverContent(
   }
 
   return { trackingNumber, estimatedDelivery };
+}
+
+async function waitForPopoverGone(adapter: ScraperAdapter, timeoutMs = 3000): Promise<void> {
+  const selector = recipe.ordersPage.trackingPopover.containerSelector;
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (!(await adapter.queryVisible(selector))) return;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+}
+
+async function waitForVisiblePopover(adapter: ScraperAdapter, timeoutMs: number): Promise<boolean> {
+  const selector = recipe.ordersPage.trackingPopover.containerSelector;
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (await adapter.queryVisible(selector)) return true;
+    await new Promise((r) => setTimeout(r, 150));
+  }
+  return false;
 }
 
 export async function scrapeTrackingFromPopovers(
@@ -342,6 +375,7 @@ export async function scrapeTrackingFromPopovers(
       console.warn("[ali-sum] CAPTCHA detected, aborting popover scraping");
       return { trackingMap, captchaDetected: true };
     }
+    await dismissDialogs(adapter);
 
     const headerInfo = await adapter.queryOne(cfg.headerInfoSelector, orderEl);
     const infoDivs = headerInfo ? await adapter.queryAll(":scope > div", headerInfo) : [];
@@ -364,7 +398,7 @@ export async function scrapeTrackingFromPopovers(
 
     await adapter.hover(trackBtn);
 
-    const popoverAppeared = await adapter.waitForSelector(recipe.ordersPage.trackingPopover.containerSelector, 3000);
+    const popoverAppeared = await waitForVisiblePopover(adapter, 3000);
 
     if (popoverAppeared) {
       await humanDelay(500, 1500);
@@ -374,12 +408,11 @@ export async function scrapeTrackingFromPopovers(
       }
     }
 
-    // Dismiss popover
-    const el = trackBtn as HTMLElement;
-    if (typeof MouseEvent !== "undefined" && el?.dispatchEvent) {
-      el.dispatchEvent(new MouseEvent("mouseleave", { bubbles: true }));
-      el.dispatchEvent(new MouseEvent("mouseout", { bubbles: true }));
-    }
+    // Dismiss popover by moving the hover elsewhere, then wait for it to disappear
+    // so the next iteration doesn't read stale content from this one.
+    const bodyEl = await adapter.queryOne("body");
+    if (bodyEl) await adapter.hover(bodyEl);
+    await waitForPopoverGone(adapter);
 
     // Randomized pause between hovers (2.5–6s)
     await humanDelay(2500, 6000);
