@@ -65,7 +65,7 @@ export async function syncOrders(
   const token = getToken();
 
   let totalCreated = 0;
-  let totalSkipped = 0;
+  let totalUpdated = 0;
   let syncLogId = "";
 
   for (let i = 0; i < orders.length; i += BATCH_SIZE) {
@@ -85,12 +85,6 @@ export async function syncOrders(
 
     if (!res.ok) {
       const body = await res.json().catch(() => null);
-      if (body && body.created === 0 && typeof body.skipped === "number" && body.skipped > 0) {
-        logger.warn({ batchNum, skipped: body.skipped }, "Batch skipped by server");
-        totalSkipped += body.skipped;
-        syncLogId = body.syncLogId || syncLogId;
-        continue;
-      }
       logger.error({ batchNum, status: res.status, body }, "Batch upload failed");
       throw new Error(
         `Sync failed on batch ${batchNum}: ${body ? JSON.stringify(body) : res.statusText}`,
@@ -98,12 +92,12 @@ export async function syncOrders(
     }
 
     const result: SyncResult = await res.json();
-    logger.debug({ batchNum, created: result.created, skipped: result.skipped }, "Batch upload succeeded");
+    logger.debug({ batchNum, created: result.created, updated: result.updated }, "Batch upload succeeded");
     totalCreated += result.created;
-    totalSkipped += result.skipped;
+    totalUpdated += result.updated;
     syncLogId = result.syncLogId;
   }
 
   onProgress?.(orders.length, orders.length);
-  return { created: totalCreated, skipped: totalSkipped, syncLogId };
+  return { created: totalCreated, updated: totalUpdated, syncLogId };
 }

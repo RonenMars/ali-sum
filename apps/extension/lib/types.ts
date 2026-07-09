@@ -38,7 +38,7 @@ export interface TrackingDetail {
 
 export interface SyncResult {
   created: number;
-  skipped: number;
+  updated: number;
   syncLogId: string;
 }
 
