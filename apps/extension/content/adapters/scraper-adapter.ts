@@ -10,5 +10,8 @@ export type ScraperAdapter = {
   scrollIntoView(element: ScraperElement): Promise<void>;
   waitForSelector(selector: string, timeoutMs: number): Promise<boolean>;
   count(selector: string): Promise<number>;
+  // Returns the currently-visible match for `selector`, not just the first in DOM
+  // order — needed when a page renders one hidden instance per row (e.g. popovers).
+  queryVisible(selector: string): Promise<ScraperElement | null>;
   bodyText(): Promise<string>;
 };

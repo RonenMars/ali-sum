@@ -13,6 +13,7 @@ import {
   scrapeTrackingFromPopovers,
   scrapeTrackingDetailPage,
   detectCaptcha,
+  dismissDialogs,
   humanDelay,
 } from "../../extension/content/scraper-core";
 import { createPlaywrightAdapter } from "./adapters/playwright-adapter";
@@ -21,22 +22,52 @@ import { logger } from "./logger";
 
 const MAX_PAGES = 200;
 const ORDERS_URL = "https://www.aliexpress.com/p/order/index.html";
+const BATCH_SIZE = 50;
 
 export async function runSync(page: Page, options: { fullSync: boolean }): Promise<void> {
   const adapter = createPlaywrightAdapter(page);
 
   await page.goto(ORDERS_URL, { waitUntil: "domcontentloaded" });
+  await adapter.waitForSelector(".order-item", 15000);
+  await dismissDialogs(adapter);
 
   const watermark = options.fullSync ? null : await fetchWatermark();
   const orderStates = watermark?.orderStates ?? new Map();
   let hitWatermark = false;
   const ordersById = new Map<string, ScrapedOrder>();
+  const uploadedIds = new Set<string>();
+  let popoverCaptcha = false;
   let pageNum = 1;
   let hasMore = true;
+
+  // Enrich + upload orders accumulated since the last flush, so partial
+  // progress reaches the backend even if the scan crashes or hits a CAPTCHA.
+  async function flushBatch() {
+    const batch = Array.from(ordersById.values()).filter((o) => !uploadedIds.has(o.aliOrderId));
+    if (batch.length === 0) return;
+
+    const orderIdsToEnrich = getOrderIdsToEnrich(batch, orderStates);
+    if (orderIdsToEnrich.size > 0 && !popoverCaptcha) {
+      const trackingResult = await scrapeTrackingFromPopovers(adapter, orderIdsToEnrich);
+      popoverCaptcha = trackingResult.captchaDetected;
+      if (popoverCaptcha) logger.warn("CAPTCHA detected while fetching popover tracking info");
+      applyTrackingMap(batch, trackingResult.trackingMap);
+    }
+
+    const { ordersToSync, skippedUnchanged } = selectOrdersToSync(batch, orderStates);
+    for (const order of batch) uploadedIds.add(order.aliOrderId);
+    if (ordersToSync.length === 0) {
+      logger.debug({ skippedUnchanged }, "Batch unchanged, skipping upload");
+      return;
+    }
+    logger.info({ count: ordersToSync.length }, "Uploading order batch");
+    await syncOrders(ordersToSync);
+  }
 
   while (hasMore && pageNum <= MAX_PAGES) {
     logger.info({ pageNum, ordersSoFar: ordersById.size }, "Scanning page");
 
+    await dismissDialogs(adapter);
     const orders = await scrapeOrdersFromPage(adapter);
     const sizeBefore = ordersById.size;
     for (const order of orders) {
@@ -44,6 +75,10 @@ export async function runSync(page: Page, options: { fullSync: boolean }): Promi
     }
     const addedThisPage = ordersById.size - sizeBefore;
     hasMore = await hasNextPage(adapter);
+
+    if (ordersById.size - uploadedIds.size >= BATCH_SIZE) {
+      await flushBatch();
+    }
 
     if (watermark?.aliOrderId && orders.some((o) => o.aliOrderId === watermark.aliOrderId)) {
       logger.info({ aliOrderId: watermark.aliOrderId }, "Hit watermark order, stopping pagination");
@@ -56,6 +91,7 @@ export async function runSync(page: Page, options: { fullSync: boolean }): Promi
     // Random pause between pages (3–8s) to mimic reading/scrolling
     await humanDelay(3000, 8000);
 
+    await dismissDialogs(adapter);
     const loaded = await clickLoadMore(adapter);
     hasMore = await hasNextPage(adapter);
 
@@ -77,29 +113,22 @@ export async function runSync(page: Page, options: { fullSync: boolean }): Promi
     );
   }
 
+  await flushBatch();
+
   const allOrders = Array.from(ordersById.values());
   const orderIdsToEnrich = getOrderIdsToEnrich(allOrders, orderStates);
 
   logger.info(
-    { totalScanned: allOrders.length, toEnrich: orderIdsToEnrich.size },
+    { totalScanned: allOrders.length },
     "Finished scanning order list",
   );
-
-  // Enrich orders with tracking details from list-page hover popovers first.
-  let popoverCaptcha = false;
-  if (orderIdsToEnrich.size > 0) {
-    logger.info("Fetching tracking info from popovers...");
-    const trackingResult = await scrapeTrackingFromPopovers(adapter, orderIdsToEnrich);
-    popoverCaptcha = trackingResult.captchaDetected;
-    if (popoverCaptcha) logger.warn("CAPTCHA detected while fetching popover tracking info");
-    applyTrackingMap(allOrders, trackingResult.trackingMap);
-  }
 
   // Fallback: navigate to each remaining order's tracking page directly.
   const enrichableOrders = allOrders.filter((o) => orderIdsToEnrich.has(o.aliOrderId));
   const ordersNeedingTracking = selectOrdersNeedingTrackingDetail(enrichableOrders);
 
   let captchaDetected = popoverCaptcha;
+  const ordersTouchedByFallback: ScrapedOrder[] = [];
   if (!captchaDetected && ordersNeedingTracking.length > 0) {
     logger.info({ count: ordersNeedingTracking.length }, "Fetching tracking detail pages");
     for (let i = 0; i < ordersNeedingTracking.length; i++) {
@@ -117,17 +146,18 @@ export async function runSync(page: Page, options: { fullSync: boolean }): Promi
         if (detail.trackingNumber) order.trackingNumber = detail.trackingNumber;
         if (detail.carrier) order.carrier = detail.carrier;
         if (detail.estimatedDelivery) order.estimatedDelivery = detail.estimatedDelivery;
+        ordersTouchedByFallback.push(order);
       } catch (err) {
         logger.warn({ err, aliOrderId: order.aliOrderId }, "Failed to fetch tracking detail page");
       }
     }
   }
 
-  const { ordersToSync, skippedUnchanged } = selectOrdersToSync(allOrders, orderStates);
+  const { ordersToSync, skippedUnchanged } = selectOrdersToSync(ordersTouchedByFallback, orderStates);
 
   logger.info(
     { toSync: ordersToSync.length, skippedUnchanged },
-    "Prepared orders for upload",
+    "Prepared fallback-enriched orders for upload",
   );
 
   let created = 0;

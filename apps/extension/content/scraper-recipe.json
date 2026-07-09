@@ -10,6 +10,11 @@
         ".nc-container"
       ]
     },
+    "dismissibleDialogs": {
+      "textMatches": ["payable amount has changed", "please note"],
+      "confirmButtonSelector": "button, [role='button']",
+      "confirmButtonLabelMatch": "confirm|ok|got it|close"
+    },
     "orders": {
       "rootSelector": ".order-item",
       "headerInfoSelector": ".order-item-header-right-info",
@@ -80,7 +85,7 @@
         "trackLinkParams": ["trackId", "logisticsNo", "tracking"],
         "dataAttrs": ["data-tracking", "data-logistics-no"],
         "trackOrderButtonSelector": "a.order-item-btn",
-        "trackOrderButtonLabelMatch": "track\\s*order"
+        "trackOrderButtonLabelMatch": "track\\s*(order|status)"
       },
       "totalSelector": ".order-item-content-opt-price-total span"
     },
