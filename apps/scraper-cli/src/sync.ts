@@ -161,14 +161,14 @@ export async function runSync(page: Page, options: { fullSync: boolean }): Promi
   );
 
   let created = 0;
-  let serverSkipped = 0;
+  let serverUpdated = 0;
   if (ordersToSync.length > 0) {
     logger.info({ count: ordersToSync.length }, "Uploading orders to backend");
     const result = await syncOrders(ordersToSync, (uploaded, total) => {
       logger.debug({ uploaded, total }, "Upload progress");
     });
     created = result.created;
-    serverSkipped = result.skipped;
+    serverUpdated = result.updated;
   } else if (allOrders.length > 0) {
     logger.info("Already up to date; skipping backend upload");
   }
@@ -181,7 +181,7 @@ export async function runSync(page: Page, options: { fullSync: boolean }): Promi
   }
 
   logger.info(
-    { created, serverSkipped, uploaded: ordersToSync.length, skippedUnchanged },
+    { created, updated: serverUpdated, uploaded: ordersToSync.length, skippedUnchanged },
     ordersToSync.length === 0 && skippedUnchanged > 0 ? "Already up to date" : "Sync complete",
   );
 }

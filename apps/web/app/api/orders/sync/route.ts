@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
   });
 
   let created = 0;
-  let skipped = 0;
+  let updated = 0;
 
   try {
     // Check which orders already exist in one query so we can count created vs updated.
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
       select: { aliOrderId: true },
     });
     const existingIds = new Set(existingOrders.map((o) => o.aliOrderId));
-    skipped = existingIds.size;
+    updated = existingIds.size;
 
     const newOrders = orders.filter((o) => !existingIds.has(o.aliOrderId));
     const existingToUpdate = orders.filter((o) => existingIds.has(o.aliOrderId));
@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ created, skipped, syncLogId: syncLog.id }, { headers: CORS_HEADERS });
+    return NextResponse.json({ created, updated, syncLogId: syncLog.id }, { headers: CORS_HEADERS });
   } catch (error) {
     console.error("[sync] Error during sync:", error);
 
@@ -152,7 +152,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json(
-      { error: "Sync failed", created, skipped },
+      { error: "Sync failed", created, updated },
       { status: 500, headers: CORS_HEADERS }
     );
   }
