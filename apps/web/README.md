@@ -22,6 +22,12 @@ npm run dev
 
 Runs at `http://localhost:3000`.
 
+## Local Development Performance
+
+Next.js 16 enables Turbopack filesystem caching for `next dev` by default. In this app, the cache can grow large enough for cache persistence and database compaction to make the machine feel stuck during startup or first route compilation.
+
+`next.config.ts` disables the dev filesystem cache with `experimental.turbopackFileSystemCacheForDev: false`. The tradeoff is that the first dashboard compile can still be slow after starting the dev server, but repeat requests should be fast and should not trigger the large Turbopack cache compaction.
+
 ## Structure
 
 ```

@@ -2,6 +2,10 @@ import type { NextConfig } from "next";
 import path from "node:path";
 
 const nextConfig: NextConfig = {
+  experimental: {
+    turbopackFileSystemCacheForDev: false,
+  },
+
   // Pin the workspace root so Turbopack doesn't infer $HOME and watch the
   // entire home directory (which froze the machine). Monorepo root is two up.
   turbopack: { root: path.join(__dirname, "..", "..") },
