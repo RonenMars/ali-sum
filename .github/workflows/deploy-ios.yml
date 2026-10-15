@@ -1,0 +1,90 @@
+name: Deploy iOS (TestFlight / App Store)
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Deployment target
+        required: true
+        type: choice
+        default: testflight
+        options:
+          - testflight
+          - production
+      release_notes:
+        description: App Store release notes (production only)
+        required: false
+        type: string
+      release_type:
+        description: App Store release behavior (production only)
+        required: true
+        type: choice
+        default: MANUAL
+        options:
+          - MANUAL
+          - AFTER_APPROVAL
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ali-sum-ios-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-ios:
+    name: Ship iOS to ${{ inputs.target }}
+    runs-on: macos-15
+    timeout-minutes: 90
+    environment: ${{ inputs.target == 'production' && 'app-store' || 'testflight' }}
+    env:
+      OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+      OP_ITEM: op://MyDevSecrets/AppStoreConnect
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Set up 1Password CLI
+        uses: 1password/install-cli-action@v2
+
+      - name: Install build tools
+        run: |
+          brew install cocoapods jq
+          xcodebuild -version
+          pod --version
+
+      - name: Validate signing access
+        run: |
+          test -n "$OP_SERVICE_ACCOUNT_TOKEN" || { echo "::error::Missing OP_SERVICE_ACCOUNT_TOKEN secret"; exit 1; }
+          op whoami
+
+      - name: Ship via canonical Capacitor pipeline
+        working-directory: apps/mobile
+        shell: bash
+        env:
+          TARGET: ${{ inputs.target }}
+          RELEASE_NOTES: ${{ inputs.release_notes }}
+          RELEASE_TYPE: ${{ inputs.release_type }}
+        run: |
+          args=(--target "$TARGET" --release-type "$RELEASE_TYPE")
+          if [[ -n "$RELEASE_NOTES" ]]; then
+            args+=(--release-notes "$RELEASE_NOTES")
+          fi
+          bash ../../.claude/skills/capacitor-ios-ship/scripts/ship.sh "${args[@]}"
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-deployment-logs
+          path: |
+            apps/mobile/build/archive.log
+            apps/mobile/build/upload.log
+          if-no-files-found: ignore
+          retention-days: 7
