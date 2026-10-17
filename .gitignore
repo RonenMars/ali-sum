@@ -9,3 +9,6 @@ dist/
 .vercel
 ali-sum-extension.zip
 .claude/scheduled_tasks.lock
+.yarn/install-state.gz
+/logs/
+/apps/web/.serena/
