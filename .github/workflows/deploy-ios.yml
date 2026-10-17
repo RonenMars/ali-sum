@@ -1,8 +1,13 @@
 name: Deploy iOS (TestFlight / App Store)
+run-name: Deploy iOS ${{ inputs.target }} from ${{ inputs.deploy_ref || github.ref_name }}
 
 on:
   workflow_dispatch:
     inputs:
+      deploy_ref:
+        description: 'Branch, tag, or commit SHA to deploy (blank = workflow branch)'
+        required: false
+        type: string
       target:
         description: Deployment target
         required: true
@@ -34,15 +39,22 @@ concurrency:
 jobs:
   deploy-ios:
     name: Ship iOS to ${{ inputs.target }}
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 90
     environment: ${{ inputs.target == 'production' && 'app-store' || 'testflight' }}
     env:
       OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
       OP_ITEM: op://MyDevSecrets/AppStoreConnect
     steps:
-      - name: Checkout
+      - name: Checkout application source
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.deploy_ref || github.ref }}
+
+      - name: Show deployed source
+        run: |
+          echo "Deploying commit: $(git rev-parse HEAD)"
+          echo "Requested ref: ${{ inputs.deploy_ref || github.ref_name }}"
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -57,6 +69,7 @@ jobs:
         run: |
           brew install cocoapods jq
           xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
           pod --version
 
       - name: Validate signing access
@@ -72,6 +85,7 @@ jobs:
           RELEASE_NOTES: ${{ inputs.release_notes }}
           RELEASE_TYPE: ${{ inputs.release_type }}
         run: |
+          export IOS_BUILD_NUMBER="$((100000 + GITHUB_RUN_NUMBER * 100 + GITHUB_RUN_ATTEMPT))"
           args=(--target "$TARGET" --release-type "$RELEASE_TYPE")
           if [[ -n "$RELEASE_NOTES" ]]; then
             args+=(--release-notes "$RELEASE_NOTES")
