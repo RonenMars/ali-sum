@@ -10,6 +10,7 @@
 # Usage:
 #   ./scripts/bump-build.sh                     # build += 1
 #   ./scripts/bump-build.sh --marketing 0.2.0   # build += 1 AND marketing → 0.2.0
+#   IOS_BUILD_NUMBER=100201 ./scripts/bump-build.sh # explicit CI build number
 
 set -euo pipefail
 
@@ -29,6 +30,15 @@ done
 CUR=$(grep -m1 'CURRENT_PROJECT_VERSION = ' "$PBX" | awk '{print $3}' | tr -d ';')
 [[ "$CUR" =~ ^[0-9]+$ ]] || { echo "Unexpected CURRENT_PROJECT_VERSION: $CUR" >&2; exit 1; }
 NEXT=$((CUR + 1))
+if [[ -n "${IOS_BUILD_NUMBER:-}" ]]; then
+  [[ "$IOS_BUILD_NUMBER" =~ ^[1-9][0-9]*$ ]] || {
+    echo "IOS_BUILD_NUMBER must be a positive integer" >&2; exit 2;
+  }
+  NEXT="$IOS_BUILD_NUMBER"
+  (( NEXT > CUR )) || {
+    echo "IOS_BUILD_NUMBER ($NEXT) must exceed the committed build number ($CUR)" >&2; exit 2;
+  }
+fi
 
 # Verify both configs are in sync before bumping (fail loud if drifted)
 SYNC_COUNT=$(grep -c "CURRENT_PROJECT_VERSION = ${CUR};" "$PBX")
