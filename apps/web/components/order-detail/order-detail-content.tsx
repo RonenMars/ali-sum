@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { formatAmount } from "@/lib/format";
 import { getShippingStatus } from "@/lib/shipping-status";
 import { aliOrderDetailUrl, ALI_ORDER_LINK_PROPS } from "@/lib/order-url";
+import { TrackingLink } from "@/components/tracking-link";
 import { TrackingStepper } from "./tracking-stepper";
 
 export interface OrderDetail {
@@ -175,6 +176,11 @@ export function OrderDetailContent({
                 </p>
               </div>
               <CopyButton text={order.trackingNumber} />
+            </div>
+          )}
+          {order.trackingNumber && (
+            <div className="p-4">
+              <TrackingLink trackingNumber={order.trackingNumber} />
             </div>
           )}
           <div className="p-4">
