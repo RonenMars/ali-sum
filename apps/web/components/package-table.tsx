@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { formatAmount } from "@/lib/format";
 import { getShippingStatus } from "@/lib/shipping-status";
 import { OpenOrderLink } from "@/components/order-detail/open-order-link";
+import { TrackingLink } from "@/components/tracking-link";
 
 interface OrderItem {
   id: string;
@@ -203,6 +204,10 @@ export function PackageTable({ orders }: { orders: Order[] }) {
                 </span>
               </div>
             </button>
+
+            <div className="border-t border-border px-4 py-3">
+              <TrackingLink trackingNumber={pkg.trackingNumber} />
+            </div>
 
             {isOpen && (
               <div className="border-t border-border bg-background/30">
