@@ -1,6 +1,6 @@
 import * as esbuild from "esbuild";
 
-const API_BASE = process.env.API_BASE || "http://localhost:3000";
+const API_BASE = process.env.API_BASE || "https://ali-sum.vercel.app";
 const DEV_TOKEN = process.env.DEV_TOKEN || "";
 const watch = process.argv.includes("--watch");
 
