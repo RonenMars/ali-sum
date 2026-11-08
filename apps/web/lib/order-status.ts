@@ -3,6 +3,7 @@ const TERMINAL_STATUS_PATTERNS = [
   /order\s*complete/i,
   /completed/i,
   /received/i,
+  /expired/i,
   /cancel/i,
   /refund/i,
 ] as const;
