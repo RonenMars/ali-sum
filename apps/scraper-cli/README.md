@@ -4,6 +4,9 @@ Standalone daily-sync runner. Reuses the same scraping recipe/adapter code as
 `apps/extension`, driven by Playwright instead of a browser extension —
 see `docs/design/DESIGN_BRIEF-scheduled-sync.md` for the full design.
 
+For PowerShell setup, persistent-login guidance, and Windows Task Scheduler,
+see [the Windows guide](../../docs/scraper-cli-windows.md).
+
 ## Setup
 
 ```bash
@@ -40,3 +43,6 @@ ALI_SUM_HEADED=1 npm -w apps/scraper-cli run sync   # watch it run
 
 Point your OS scheduler (macOS `launchd`, Windows Task Scheduler) at
 `npm -w apps/scraper-cli run sync` on whatever daily cadence you want.
+
+Set `ALI_SUM_API_BASE` explicitly when the scheduler targets a remote
+deployment. It defaults to `http://localhost:3000`.

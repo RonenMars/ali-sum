@@ -53,7 +53,19 @@ npx prisma migrate dev           # Run migrations (run from apps/web/)
 # Extension
 npm -w apps/extension run build  # Build to dist/
 npm -w apps/extension run watch  # Watch mode
+
+# Standalone scraper CLI
+npm -w apps/scraper-cli run login        # One-time AliExpress login
+npm -w apps/scraper-cli run sync         # Incremental headless sync
+npm -w apps/scraper-cli run sync:headed  # Visible-browser sync
 ```
+
+The scraper CLI is cross-platform. Use `ALI_SUM_API_BASE` to target the API;
+it defaults to `http://localhost:3000`, so production runs require
+`https://ali-sum.vercel.app`. On Windows, follow
+`docs/scraper-cli-windows.md` for PowerShell and Task Scheduler setup. The
+watermark is server-derived: normal runs stop at already-terminal history;
+`sync:full` intentionally bypasses that boundary.
 
 ## Environment Variables (apps/web/.env)
 
