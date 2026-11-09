@@ -54,13 +54,23 @@ ali-sum/
 │   │   │   └── ui/             # shadcn/ui components
 │   │   ├── lib/                # Prisma client, auth config, API auth middleware
 │   │   └── prisma/             # Schema & migrations
-│   └── extension/              # Chrome extension
+│   ├── extension/              # Chrome extension
 │       ├── popup/              # Extension popup UI
 │       ├── content/            # AliExpress order page scraper
 │       ├── background/         # Service worker (sync orchestration)
 │       └── lib/                # API client, shared types
+│   └── scraper-cli/            # Playwright-based standalone sync runner
 └── package.json                # npm workspaces root
 ```
+
+## Standalone scraper CLI
+
+The extension remains the normal interactive sync path. `apps/scraper-cli`
+provides the same incremental sync flow through Playwright, which is useful for
+scheduled runs and does not require Chrome-the-app to be open.
+
+- [Windows setup and Task Scheduler guide](docs/scraper-cli-windows.md)
+- [CLI commands and environment variables](apps/scraper-cli/README.md)
 
 ## Running Locally
 
